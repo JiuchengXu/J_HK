@@ -109,18 +109,21 @@ s8 connect_ap(char *id, char *passwd, s8 channel)
 {
 	uint8_t times = 5;
 	int timeout;
+	int priv_char;
 	
 	while (times-- > 0) {	
 		sprintf(temp, "AT+CWJAP=\"%s\",\"%s\"\r\n", id, passwd);
 		bus_send_string(temp);	
 
-		timeout = 500;
+		timeout = 5000;
 		
 		while (timeout--) {	
 			char c = wifi_uart_recieve1();
 			
-			if (c == 'K')
+			if (priv_char == 'O' && c == 'K')
 				break;
+			
+			priv_char = c;
 
 			msleep(10);			
 		}
@@ -161,7 +164,7 @@ s8 close_conn(void)
 	sprintf(temp, "AT+CWQAP\r\n");
 	bus_send_string(temp);
 	
-	sleep(5);
+	msleep(200);
 	
 	bus_recieve_string(output);
 	
@@ -241,6 +244,34 @@ s8 udp_setup(u32 ip, u16 remote_port, u16 local_port)
 	bus_recieve_string(output);
 	
 	return str_include(output, "OK");
+}
+
+void ping(u32 ip)
+{
+	char ip_str[16];
+	int timeout = 500;
+	int priv_char;
+	
+	sprintf(ip_str, "%d.%d.%d.%d", ip >> 24, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip &0xff);
+	
+	sprintf(temp, "AT+PING=\"%s\"\r\n", ip_str);
+	
+	bus_send_string(temp);
+	
+	while (timeout--) {	
+			char c = wifi_uart_recieve1();
+			if (priv_char == 'O' && c == 'K')
+				break;
+			
+			if (priv_char == 'O' && c == 'R')
+				break;
+			
+			priv_char = c;
+			
+			msleep(10);			
+		}
+	
+	msleep(100);
 }
 
 static s8 get_id(u32 ip, u16 local_port, u16 remote_port)
@@ -682,6 +713,34 @@ s8 connect_ap(char *id, char *passwd, s8 channel)
 			return 0;
 	}
 	return -1;
+}
+
+void ping(u32 ip)
+{
+	char ip_str[16];
+	int timeout = 500;
+	int priv_char;
+	
+	sprintf(ip_str, "%d.%d.%d.%d", ip >> 24, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip &0xff);
+	
+	sprintf(temp, "AT+PING=\"%s\"\r\n", ip_str);
+	
+	bus_send_string(temp);
+	
+	while (timeout--) {	
+			char c = wifi_uart_recieve1();
+			if (priv_char == 'O' && c == 'K')
+				break;
+			
+			if (priv_char == 'O' && c == 'R')
+				break;
+			
+			priv_char = c;
+			
+			msleep(10);			
+		}
+	
+	msleep(100);
 }
 
 s8 set_mac_addr(void)

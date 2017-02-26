@@ -17,8 +17,8 @@
 #define RIFLE_IP	(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 3)
 #define LCD_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 5)
 
-#define HOST_PORT			(u16)8888
-#define GUN_PORT			(u16)8889
+#define HOST_PORT			(u16)8891
+#define GUN_PORT			(u16)8892
 #define RIFLE_PORT			(u16)8890
 #define LCD_PORT			(u16)8891
 
@@ -65,10 +65,10 @@ extern void ProgBarShow(void);
 
 static s8 sendto_host(char *buf, u16 len)
 {
-	return send_data((u32)HOST_IP, (u16)LCD_PORT, (u16)LCD_PORT, buf, len);
+	return send_data((u32)HOST_IP, (u16)HOST_PORT, (u16)HOST_PORT, buf, len);
 }
 
-#if 0
+#if 1
 static s8 sendto_rifle(char *buf, u16 len)
 {
 	return send_data(RIFLE_IP, RIFLE_PORT, RIFLE_PORT, buf, len);
@@ -140,14 +140,25 @@ static void recv_host_handler(char *buf, u16 len)
 
 static void recv_gun_handler(char *buf, u16 len)
 {
-	struct GunStatusData *data = (void *)buf;
-	//struct ClothesStatusData *data1 = (void *)buf;	
-	u32 packTye;
+	struct LcdStatusData *data = (void *)buf;
+	u32 packType;
+	int msg_type, msg_value;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
+	packType = CHAR2INT(data->packTye);
 	
-	if (packTye == GUN_STATUS_TYPE)
-		bulet_left = (s16)char2u32(data->bulletLeft, sizeof(data->bulletLeft));
+	if (packType == LCD_MSG) {
+		msg_type = (int)CHAR2INT(data->msg_type);
+		msg_value = (int)CHAR2INT(data->msg_value);
+		
+		switch (msg_type) {
+			case LCD_GUN_BULLET :
+				bulet_left = msg_value;
+				break;
+			case LCD_LIFE :
+				life_left = msg_value;
+				break;
+		}
+	}
 }
 
 static void recv_task(void)
@@ -231,10 +242,15 @@ static void net_init(void)
 	for (i = 0; i < 4; i++)
 		udp_close(i);
 	
-	if (udp_setup(HOST_IP, LCD_PORT, LCD_PORT) < 0)
+	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
+		err_log("");
+	
+	if (udp_setup(GUN_IP, GUN_PORT, GUN_PORT) < 0)
 		err_log("");
 	
 	start_gun_tasks();
+	
+	ping(GUN_IP);
 	
 	while (!actived) {
 		active_request();

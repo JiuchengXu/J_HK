@@ -430,14 +430,14 @@
               <FilePath>.\lcd.c</FilePath>
             </File>
             <File>
-              <FileName>task_font.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\task_font.c</FilePath>
-            </File>
-            <File>
               <FileName>battery.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\battery.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_font.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\task_font.c</FilePath>
             </File>
             <File>
               <FileName>display.c</FileName>

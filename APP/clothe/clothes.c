@@ -11,7 +11,7 @@
 
 #ifdef CLOTHE
 
-#define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)43 << 8) | 35)
+#define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)1 << 8) | 10)
 
 #define GUN_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 2)
 #define RIFLE_IP	(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 3)
@@ -204,8 +204,8 @@ static void recv_gun_handler(char *buf, u16 len)
 			//sendto_lcd(buf, len);
 			int value = CHAR2INT(((struct GunStatusData *)data)->bulletLeft);
 			bulet = value;
-			upload_lcd(LCD_GUN_BULLET, value);
-			msleep(20);
+			//upload_lcd(LCD_GUN_BULLET, value);
+			//msleep(20);
 		}
 		
 		sendto_host(buf, len);

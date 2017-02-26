@@ -13,10 +13,10 @@
 #define RIFLE_IP	(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 3)
 #define LCD_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 5)
 
-#define HOST_PORT			(u16)8888
+#define HOST_PORT			(u16)8889
 #define GUN_PORT			(u16)8889
 #define RIFLE_PORT			(u16)8890
-#define LCD_PORT			(u16)8891
+#define LCD_PORT			(u16)8892
 
 #define OS_RECV_TASK_STACK_SIZE     128
 #define OS_HB_TASK_STACK_SIZE   	 64
@@ -54,7 +54,7 @@ extern s8 key_get_blod(void);
 
 static s8 sendto_host(char *buf, u16 len)
 {
-	return send_data((u32)HOST_IP, (u16)GUN_PORT, (u16)GUN_PORT, buf, len);
+	return send_data((u32)HOST_IP, (u16)HOST_PORT, (u16)HOST_PORT, buf, len);
 }
 
 static s8 sendto_rifle(char *buf, u16 len)
@@ -77,6 +77,21 @@ static int active_request(void)
 	INT2CHAR(data.packageID, packageID++);
 	
 	return sendto_host((char *)&data, sizeof(data));
+}
+
+static int upload_lcd(u8 msg_type, u16 value)
+{
+	struct LcdStatusData data;
+	
+	memset(&data, '0', sizeof(data));
+	
+	INT2CHAR(data.transMod, 0);
+	INT2CHAR(data.packTye, LCD_MSG);
+	
+	INT2CHAR(data.msg_type, msg_type);
+	INT2CHAR(data.msg_value, value);
+	
+	sendto_lcd((char *)&data, sizeof(data));
 }
 
 static int get_deviceSubType(void)
@@ -103,7 +118,11 @@ static int upload_status_data(void)
 
 	INT2CHAR(data.PowerLeft, get_power());
 	
+	upload_lcd(LCD_GUN_BULLET, get_buletLeft());
+	msleep(20);
+	
 	return sendto_host((char *)&data, sizeof(data));
+
 }
 
 static int upload_heartbeat(void)
@@ -220,14 +239,16 @@ static void net_init(void)
 	for (i = 0; i < 4; i++)
 		udp_close(i);
 	
-	if (udp_setup(HOST_IP, GUN_PORT, GUN_PORT) < 0)
+	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
 		err_log("");
 	
 	//if (udp_setup(GUN_IP, GUN_PORT, GUN_PORT) < 0)
 	//	err_log("");
 	
-	//if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
-	//	err_log("");
+	if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
+		err_log("");
+	
+	ping(LCD_IP);
 }
 
 static void start_gun_tasks(void)
@@ -313,9 +334,9 @@ void main_loop(void)
 #endif	
 	set_buletLeft(100);
 	
-	red_led_on();
-	
 	upload_status_data();
+	
+	red_led_on();
 	
 	while (1) {
 		if (key_get_fresh_status())

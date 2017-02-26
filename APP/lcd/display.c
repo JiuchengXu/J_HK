@@ -479,7 +479,7 @@ static void update_iterm_task(void)
 	
 	//GUI_MEMDEV_CreateAuto(&AutoDev);
 	
-	set_time(0x58587480);
+	//set_time(0x58587480);
 	
 	while (1) {
 		//GUI_MEMDEV_DrawAuto(&AutoDev, /* Use GUI_AUTODEV-object for drawing */
