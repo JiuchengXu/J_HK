@@ -11,7 +11,7 @@
 
 #ifdef CLOTHE
 
-#define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)1 << 8) | 10)
+#define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)2 << 8) | 10)
 
 #define GUN_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 2)
 #define RIFLE_IP	(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 3)
@@ -350,7 +350,7 @@ static void net_init(void)
 {
 	u8 i;
 	char sid[20] = "CSsub", passwd[20] = "12345678", \
-		host[20] = "1103", host_passwd[20] = "Q!W@E#r4", \
+		host[20] = "-skeleton-", host_passwd[20] = "xugang1986", \
 	    ip[16] = "192.168.1.";
 	
 	// ip最后一位作为一个标识
@@ -413,7 +413,10 @@ void main_loop(void)
 		sleep(1);
 	}
 		
-	red_led_on();
+	red_led_on();	
+	beep_on();
+	sleep(1);
+	beep_off();
 	
 	upload_status_data();
 	

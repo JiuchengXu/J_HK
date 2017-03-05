@@ -270,7 +270,7 @@ void i2c_init(void)
 #endif
 		
 	OSSemCreate(&i2c_buf.sem, "blod Sem", 0, &err);
-#if 0	
+#if 1	
 	/*********************************I2C2**************************************/
 
 	

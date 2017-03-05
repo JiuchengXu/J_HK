@@ -388,14 +388,16 @@ extern void esp8266_init(void);
 void  BSP_Init (void)
 {
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);	
-	LED_Init();
+	//LED_Init();
 	uart_inint();
-	FSMC_SRAM_Init();
-	TFTLCD_Init();	
+	FSMC_SRAM_Init();	
+	TFTLCD_Init();
 	esp8266_init();
-	i2c_init();
+	//i2c_init();
 	SPI3_init();
 	keyboard_init();
 	
-	//beep_init();
+	
+	
+	beep_init();
 }

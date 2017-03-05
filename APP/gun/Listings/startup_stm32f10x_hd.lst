@@ -553,11 +553,11 @@ ARM Macro Assembler    Page 9
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
 ork --depend=..\..\out\gun_output\startup_stm32f10x_hd.d -o..\..\out\gun_output
-\startup_stm32f10x_hd.o -I"D:\私活\枪\project\重新组织目录 - 副本 (2) - 副本\AP
-P\gun\RTE" -IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.1.0 -IC:\Keil_v5\ARM\CMSI
-S\Include --predefine="__MICROLIB SETA 1" --predefine="__UVISION_VERSION SETA 5
-14" --predefine="STM32F10X_HD SETA 1" --list=.\listings\startup_stm32f10x_hd.ls
-t ..\..\stmlib\startup\startup_stm32f10x_hd.s
+\startup_stm32f10x_hd.o -ID:\私活\枪\project\final\APP\gun\RTE -IC:\Keil_v5\ARM
+\PACK\Keil\STM32F1xx_DFP\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__MI
+CROLIB SETA 1" --predefine="__UVISION_VERSION SETA 514" --predefine="STM32F10X_
+HD SETA 1" --list=.\listings\startup_stm32f10x_hd.lst ..\..\stmlib\startup\star
+tup_stm32f10x_hd.s
 
 
 

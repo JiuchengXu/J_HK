@@ -291,6 +291,8 @@ void main_loop(void)
 	
 	GUI_Clear();
 	
+	backlight_on();
+	
 	GUI_Delay(100);
 	
 	pic_preload();
@@ -304,6 +306,10 @@ void main_loop(void)
 	ProgBarShow();
 
 	show_home();
+	
+	beep_on();
+	sleep(2);
+	beep_off();
 		
 #if 1			
 	while (1) {
@@ -337,17 +343,16 @@ void main_loop(void)
 				
 				break;
 		
-			case 0:
+			case 2:
 				if (need_reflash == 1)
 					show_task();
 				
 				break;
-			case 2:
+			case 3:
 				if (need_reflash == 1)
 					show_msg();
 				
 				break;
-			case 3:
 			case 4:
 				break;
 			default:

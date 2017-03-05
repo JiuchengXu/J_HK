@@ -144,11 +144,12 @@ void TFTLCD_Init(void)
 		   /* tft control gpio init */	 
 
 		//GPIO_SetBits(GPIOA, GPIO_Pin_12);
-		GPIO_SetBits(GPIOA, GPIO_Pin_12);
-		msleep(20);
-		//GPIO_ResetBits(GPIOA, GPIO_Pin_12);		 // RST = 1
+	//	GPIO_SetBits(GPIOA, GPIO_Pin_12);
+		//msleep(20);
+		//GPIO_ResetBits(GPIOA, GPIO_Pin_12);		 // RST = 0
 		GPIO_ResetBits(GPIOA, GPIO_Pin_12);
 		msleep(200);
+		//sleep(5);
 		//GPIO_SetBits(GPIOA, GPIO_Pin_12);		 // RST = 1
 		GPIO_SetBits(GPIOA, GPIO_Pin_12);
 		msleep(200);
@@ -385,8 +386,12 @@ void TFTLCD_Init(void)
 	
     //writecommand(0x21); //Display inversion on
 	
-	Lcd_Light_ON;
-	
 	mutex_init(&lcd_lock);
 #endif
 } 
+
+
+void backlight_on(void)
+{
+	Lcd_Light_ON;
+}

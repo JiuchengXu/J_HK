@@ -4,12 +4,12 @@
 #include "priority.h"
 #include "key.h"
 
-#define I2C                   I2C1
+#define I2C                   I2C2
 
-#define AT24Cx_Address           0xa6 
+#define AT24Cx_Address           0xac 
 #define AT24Cx_PageSize          8 
-#define KEY_INT_GPIO		GPIOA
-#define KEY_INT_GPIO_PIN	GPIO_Pin_0
+#define KEY_INT_GPIO			GPIOA
+#define KEY_INT_GPIO_PIN		GPIO_Pin_0
 
 struct eeprom_key_info {
 	char sn[16];

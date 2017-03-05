@@ -314,10 +314,10 @@ ARM Macro Assembler    Page 5
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
 ork --depend=..\..\out\lcd_output\os_cpu_a.d -o..\..\out\lcd_output\os_cpu_a.o 
--I"D:\私活\枪\project\重新组织目录 - 副本 (2) - 副本\APP\lcd\RTE" -IC:\Keil_v5\
-ARM\PACK\Keil\STM32F1xx_DFP\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predefine="_
-_MICROLIB SETA 1" --predefine="__UVISION_VERSION SETA 514" --predefine="STM32F1
-0X_HD SETA 1" --list=.\listings\os_cpu_a.lst ..\..\ucos\Ports\os_cpu_a.asm
+-IF:\私活\枪\project\final\APP\lcd\RTE -IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP
+\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__EVAL SETA 1" --predefine="
+__MICROLIB SETA 1" --predefine="__UVISION_VERSION SETA 514" --predefine="STM32F
+10X_HD SETA 1" --list=.\listings\os_cpu_a.lst ..\..\ucos\Ports\os_cpu_a.asm
 
 
 
@@ -482,4 +482,4 @@ Symbol: OS_CPU_ExceptStkBase
       At line 85 in file ..\..\ucos\Ports\os_cpu_a.asm
 Comment: OS_CPU_ExceptStkBase used once
 8 symbols
-352 symbols in table
+353 symbols in table
