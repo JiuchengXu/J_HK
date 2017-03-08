@@ -553,7 +553,7 @@ ARM Macro Assembler    Page 9
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
 ork --depend=..\..\out\clothe_output\startup_stm32f10x_hd.d -o..\..\out\clothe_
-output\startup_stm32f10x_hd.o -ID:\Ë½»î\Ç¹\project\final\APP\clothe\RTE -IC:\Ke
+output\startup_stm32f10x_hd.o -IF:\Ë½»î\Ç¹\project\final\APP\clothe\RTE -IC:\Ke
 il_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predef
 ine="__MICROLIB SETA 1" --predefine="__UVISION_VERSION SETA 514" --predefine="S
 TM32F10X_HD SETA 1" --list=.\listings\startup_stm32f10x_hd.lst ..\..\stmlib\sta

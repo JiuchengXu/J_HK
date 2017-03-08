@@ -40,7 +40,6 @@
 #define ESP8266_PWR_EN_PIN		GPIO_Pin_1
 #endif
 
-
 struct ip_port_map {
 	u32 ip;
 	u16 remote_port;
@@ -59,6 +58,7 @@ s8 close_udp(u8 id);
 
 extern void reset_buffer(void);
 extern void reset_rx_buffer1(void);
+extern u8 wifi_uart_recieve1(void);
 
 void bus_send_string(char *buf)
 {
@@ -79,23 +79,41 @@ void bus_recieve_string(char *buf)
 	while ((buf[i++] = bus_recieve()) != '\0');
 }
 
-s8 str_include(char *buf, char *str)
-{	
-	u16 i = 0, j = 0, k;
-
-	for (i = 0; buf[i] != '\0'; i++) {
-		for (j = 0, k = i; str[j] != '\0' && buf[k] != '\0'; j++, k++) {
-			if (buf[k] == str[j])
-				continue;
-			else
-				break;
-		}
-		
-		if (str[j] == '\0')
+static s8 wait_for_return(void)
+{
+	int timeout = 1500;
+	char priv_char;
+	
+	while (timeout) {	
+		char c = wifi_uart_recieve1();
+			
+		if (priv_char == 'O' && c == 'K')
 			return 0;
 		
-		if (buf[k] == '\0')
+		if (priv_char == 'E' && c == 'R')
+			return 0;
+		
+		if (priv_char == 'F' && c == 'A')
 			return -1;
+		
+		if (c == '\0') {
+			msleep(10);
+			timeout--;
+		} else
+			priv_char = c;					
+	}
+
+	return -1;
+}
+
+static s8 exe_cmd(char *cmd)
+{
+	int retry = 5;
+
+	while (retry--) {
+		bus_send_string(cmd);
+		if (wait_for_return() == 0)
+			return 0;
 	}
 	
 	return -1;
@@ -103,143 +121,62 @@ s8 str_include(char *buf, char *str)
 
 s8 set_mode(u8 mode)
 {
-	sleep(1);
-	sprintf(temp, "AT+CWMODE=%d\r\n", mode);
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	sprintf(temp, "AT+CWMODE=%d\r\n", mode);	
+	return exe_cmd(temp);
 }
 
 s8 set_show_ip(int mode)
 {
 	sprintf(temp, "AT+CIPDINFO=%d\r\n", mode);
-	bus_send_string(temp);
-		
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 connect_ap(char *id, char *passwd, s8 channel)
-{
-	uint8_t times = 5;
-	int timeout;
-	int priv_char;
-	
-	while (times-- > 0) {	
-		sprintf(temp, "AT+CWJAP=\"%s\",\"%s\"\r\n", id, passwd);
-		bus_send_string(temp);	
-
-		timeout = 5000;
-		
-		while (timeout--) {	
-			char c = wifi_uart_recieve1();
-			
-			if (priv_char == 'O' && c == 'K')
-				break;
-			
-			priv_char = c;
-
-			msleep(10);			
-		}
-		
-		bus_recieve_string(output);
-		
-		if (str_include(output, "OK") == 0)
-			return 0;
-	}
-	return -1;
+{		
+	sprintf(temp, "AT+CWJAP=\"%s\",\"%s\"\r\n", id, passwd);
+	return exe_cmd(temp);
 }
 
 s8 set_mac_addr(void)
 {
 	sprintf(temp, "AT+CIPSTAMAC=\"18:fe:35:98:d3:7b\"\r\n");
-	bus_send_string(temp);
-		
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 set_auto_conn(u8 i)
 {
 	sprintf(temp, "AT+CWAUTOCONN=%d\r\n", i);
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");	
+	return exe_cmd(temp);	
 }
 s8 close_conn(void)
 {
 	sprintf(temp, "AT+CWQAP\r\n");
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 set_RF_power(s8 v)
 {
 	sprintf(temp, "AT+RFPOWER=%d\r\n", v);
-	bus_send_string(temp);
-	
-	sleep(1);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 set_ap(char *sid, char *passwd)
 {
 	sprintf(temp, "AT+CWSAP=\"%s\",\"%s\",5,3,4\r\n", sid, passwd);
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 set_echo(s8 on)
 {
-	reset_buffer();
-	
+	reset_buffer();	
 	sprintf(temp, "ATE%d\r\n", on);
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 set_mux(s8 mode)
 {
 	sprintf(temp, "AT+CIPMUX=%d\r\n", mode);
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");	
+	return exe_cmd(temp);	
 }
 
 s8 udp_setup(u32 ip, u16 remote_port, u16 local_port)
@@ -255,23 +192,16 @@ s8 udp_setup(u32 ip, u16 remote_port, u16 local_port)
 	ip_map[gID].remote_port = remote_port;
 	ip_map[gID].local_port = local_port;
 	
-	//sprintf(temp, "AT+CIPSTART=%d,\"UDP\",\"%s\",%d,%d,2\r\n", gID++, ip_str, remote_port, local_port);
 	sprintf(temp, "AT+CIPSTART=%d,\"UDP\",\"%s\",%d,%d\r\n", gID++, ip_str, remote_port, local_port);
 	
-	bus_send_string(temp);
-	
-	msleep(400);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 void ping(u32 ip)
 {
 	char ip_str[16];
 	int timeout = 500;
-	int priv_char;
+	char priv_char;
 	
 	sprintf(ip_str, "%d.%d.%d.%d", ip >> 24, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip &0xff);
 	
@@ -279,18 +209,20 @@ void ping(u32 ip)
 	
 	bus_send_string(temp);
 	
-	while (timeout--) {	
-			char c = wifi_uart_recieve1();
-			if (priv_char == 'O' && c == 'K')
-				break;
-			
-			if (priv_char == 'O' && c == 'R')
-				break;
-			
-			priv_char = c;
-			
-			msleep(10);			
-		}
+	while (timeout) {	
+		char c = wifi_uart_recieve1();
+		if (priv_char == 'O' && c == 'K')
+			break;
+		
+		if (priv_char == 'O' && c == 'R')
+			break;
+		
+		if (c == '\0') {
+			msleep(10);
+			timeout--;
+		} else
+			priv_char = c;						
+	}
 	
 	msleep(100);
 }
@@ -313,42 +245,11 @@ static struct ip_port_map *get_ip_port(u8 id)
 	return &ip_map[id];
 }
 
-s8 send_data_old(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
-{
-	u8 id = get_id(ip, src_port, dst_port);
-	s8 ret;
-	
-	mutex_lock(&lock);
-	sprintf(temp, "AT+CIPSEND=%d,%d\r\n", id, len);
-	
-	bus_send_string(temp);
-		
-#if 0
-	msleep(len >> 2);	
-	bus_recieve_string(output);
-		
-	if (str_include(output, ">") == 0) {
-		bus_send(data, len);
-		msleep(10);
-		ret = str_include(output, "SEND OK");
-	} else
-		ret = -1;
-#else
-	msleep(100);
-	
-	bus_send(data, len);
-#endif
-		
-	mutex_unlock(&lock);
-	
-	return ret;
-}
-
 s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
 {
 	u8 id = get_id(ip, src_port, dst_port);
-	OS_ERR err;
-	int timeout;
+	int timeout, ret = -1;
+	char priv_char;
 	
 	sprintf(temp, "AT+CIPSEND=%d,%d\r\n", id, len);
 		
@@ -358,32 +259,46 @@ s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
 	
 	timeout = 500;
 	
-	while (timeout--) {	
+	while (timeout) {	
 		char c = wifi_uart_recieve1();
 		
-		if (c == '>')
+		if (c == '>') {
+			ret = 0;
 			break;
-
-		msleep(10);			
+		}
+		
+		if (c == '\0') {
+			msleep(10);	
+			timeout--;
+		}
 	}
+	
+	if (timeout == 0 && ret == -1)
+		goto out;
 	
 	bus_send(data, len);
 	
 	timeout = 500;
+	ret = -1;
 	
-	while (timeout--) {
+	while (timeout) {
 		char c = wifi_uart_recieve1();
 		
-		if (c == 'K')
-			break;
+		if (priv_char == 'O' && c == 'K') {
+			ret = 0;
+			goto out;
+		}
 		
-
-		msleep(10);			
+		if (c == '\0') {
+			msleep(10);	
+			timeout--;
+		} else
+			priv_char = c;
 	}
-	
+out:	
 	mutex_unlock(&lock);
 	
-	return 0;
+	return ret;
 }
 
 static u16 get_len(char *buf)
@@ -399,6 +314,19 @@ static u16 get_len(char *buf)
 	return tmp;
 }
 
+static char net_receive_sync(void)
+{
+	char c;
+	
+	while (1) {
+		c = bus_recieve();
+		if (c == '\0')
+			msleep(10);
+		else
+			return c;
+	}
+}
+
 void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 {
 	char tmp[10], c;
@@ -408,26 +336,21 @@ void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 	struct ip_port_map *map;
 
 	while (1) {		
-		c = bus_recieve();
+		c = net_receive_sync();
 		
-		if (c == '+') {
-			msleep(100);		
-		} else if (c == '\0') {
-			msleep(100);			
-			continue;
-		} else			
-			continue;
+		if (c != '+')
+			continue;		
 		
 		/* read IPD */
 		for (i = 0; i < 4; i++)
-			tmp[i] = bus_recieve();
+			tmp[i] = net_receive_sync();
 		
 		if (strncmp(tmp, "IPD,", 4) != 0)
 			continue;
 		
 		/* read fd */
 		for (i = 0; i < 2; i++)
-			tmp[i] = bus_recieve();
+			tmp[i] = net_receive_sync();
 		
 		//fd is from '0' to '9'
 		fd  = tmp[0] - '0';
@@ -436,7 +359,7 @@ void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 		len = get_len(tmp);
 		
 		for (i = 0; i < len; i++)
-			buf[i] = bus_recieve();
+			buf[i] = net_receive_sync();
 		
 		break;
 	}
@@ -450,72 +373,25 @@ void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 s8 udp_close(u8 id)
 {
 	sprintf(temp, "AT+CIPCLOSE=%d\r\n", id);
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");
+	return exe_cmd(temp);
 }
 
 s8 set_ip(char *ip)
 {
 	sprintf(temp, "AT+CIPSTA=\"%s\"\r\n", ip);
-								
-	bus_send_string(temp);
-	
-	msleep(20);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");	
+	return exe_cmd(temp);	
 }
 
 s8 set_bound(void)
 {
 	sprintf(temp, "AT+UART=115200,8,1,0,0\r\n");
-								
-	bus_send_string(temp);
-	
-	msleep(20);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");	
+	return exe_cmd(temp);	
 }
 
 s8 esp_reset(void)
 {
 	sprintf(temp, "AT+RST\r\n");
-								
-	bus_send_string(temp);
-	
-	msleep(200);
-	
-	bus_recieve_string(output);
-	
-	return str_include(output, "OK");	
-}
-
-char data_i[100];
-
-void send_test(void)
-{
-	u32 ip = ((u32)192 << 24) | ((u32)168 << 16) | ((u32)1 << 8) | 20;
-	u16 src_port;
-	u16 port = 8888;
-	char data[] = "hello world!";
-	u16 len;
-
-	udp_close(0);
-	
-	if (udp_setup(ip, port, port) < 0)
-		err_log("udp_setup");
-	
-	send_data(ip, port, port, data, strlen(data));
-	
-	recv_data(&ip, &src_port, data_i, &len);
+	return exe_cmd(temp);	
 }
 
 void update_esp8266(void)

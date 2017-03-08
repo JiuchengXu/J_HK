@@ -554,10 +554,10 @@ ARM Macro Assembler    Page 9
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
 ork --depend=..\..\out\lcd_output\startup_stm32f10x_hd.d -o..\..\out\lcd_output
 \startup_stm32f10x_hd.o -IF:\Ë½»î\Ç¹\project\final\APP\lcd\RTE -IC:\Keil_v5\ARM
-\PACK\Keil\STM32F1xx_DFP\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__EV
-AL SETA 1" --predefine="__MICROLIB SETA 1" --predefine="__UVISION_VERSION SETA 
-514" --predefine="STM32F10X_HD SETA 1" --list=.\listings\startup_stm32f10x_hd.l
-st ..\..\stmlib\startup\startup_stm32f10x_hd.s
+\PACK\Keil\STM32F1xx_DFP\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__MI
+CROLIB SETA 1" --predefine="__UVISION_VERSION SETA 514" --predefine="STM32F10X_
+HD SETA 1" --list=.\listings\startup_stm32f10x_hd.lst ..\..\stmlib\startup\star
+tup_stm32f10x_hd.s
 
 
 
@@ -1429,4 +1429,4 @@ Symbol: __main
       At line 153 in file ..\..\stmlib\startup\startup_stm32f10x_hd.s
 Comment: __main used once
 2 symbols
-423 symbols in table
+422 symbols in table
