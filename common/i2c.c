@@ -3,7 +3,7 @@
 
 #define I2C1_RCC               RCC_APB1Periph_I2C1
 
-#define I2C1_GPIO_RCC    	  RCC_APB2Periph_GPIOB
+#define I2C1_GPIO_RCC    	   RCC_APB2Periph_GPIOB
 #define I2C1_GPIO       	   GPIOB
 #define I2C1_SCL_Pin           GPIO_Pin_8
 
@@ -14,7 +14,7 @@
 #define I2C2_RCC               RCC_APB1Periph_I2C2
 
 #define I2C2_GPIO_RCC      		RCC_APB2Periph_GPIOB
-#define I2C2_GPIO        	  GPIOB
+#define I2C2_GPIO        	   GPIOB
 #define I2C2_SCL_Pin           GPIO_Pin_10
 
 #define I2C2_SDA_GPIO_RCC      I2C2_GPIO_RCC
@@ -193,14 +193,13 @@ void I2C1_EV_IRQHandler(void)
 #undef I2C 	
 }
 
-
 void i2c_init(void)
 {
 	OS_ERR err;
 	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	I2C_InitTypeDef I2C_InitStructure;
-
+#if 1
 	RCC_APB2PeriphClockCmd(I2C1_GPIO_RCC, ENABLE);
 	
 	GPIO_PinRemapConfig(GPIO_Remap_I2C1, ENABLE);
@@ -270,9 +269,11 @@ void i2c_init(void)
 #endif
 		
 	OSSemCreate(&i2c_buf.sem, "blod Sem", 0, &err);
-#if 1	
+	#endif
+#if defined(CLOTHE) || defined(GUN)	
 	/*********************************I2C2**************************************/
-
+	RCC_APB1PeriphClockCmd(I2C2_RCC, ENABLE);
+	RCC_APB2PeriphClockCmd(I2C2_GPIO_RCC, ENABLE);
 	
 	GPIO_InitStructure.GPIO_Pin    = I2C2_SCL_Pin | I2C2_SDA_Pin;
 	GPIO_InitStructure.GPIO_Speed  = GPIO_Speed_50MHz;
@@ -281,8 +282,6 @@ void i2c_init(void)
 	GPIO_Init(I2C2_GPIO, &GPIO_InitStructure);
 	
 	I2C_DeInit(I2C2);
-	
-	RCC_APB1PeriphClockCmd(I2C2_RCC, ENABLE);
 	
 	I2C_InitStructure.I2C_ClockSpeed          = 100000;    //100KHz I2C
 	I2C_InitStructure.I2C_Mode                = I2C_Mode_I2C;   

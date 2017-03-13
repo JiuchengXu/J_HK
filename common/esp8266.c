@@ -468,5 +468,13 @@ void esp8266_init(void)
 	enbale_esp8266();
 	
 	mutex_init(&lock);
+}
 
+void esp8266_update_firmware(void)
+{
+	update_esp8266();	
+	reset_esp8266();
+	disable_esp8266();
+	msleep(100);
+	enbale_esp8266();	
 }

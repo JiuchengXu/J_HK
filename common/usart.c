@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "helper.h"
 #include <priority.h>
+#include "mutex.h"
 
 #define BUF_LENGTH	2048
 static char RxBuf[BUF_LENGTH];
@@ -52,6 +53,8 @@ void (*wifi_uart_recv_hook)(char c);
 
 #endif
 
+static struct wait usb_waiter, wifi_waiter;
+
 int fputc(int ch, FILE *f)
 {      
 	while((USB_USART->SR&0X40)==0);//循环发送,直到发送完毕   
@@ -63,7 +66,7 @@ void WIFI_IRQHandler(void)
 {
 	char c;
 	
-	OSIntEnter(); 
+	//OSIntEnter(); 
 	
 	if(USART_GetITStatus(WIFI_USART, USART_IT_RXNE) != RESET) {
 		c = RxBuf[w_index++] = USART_ReceiveData(WIFI_USART);
@@ -73,30 +76,34 @@ void WIFI_IRQHandler(void)
 		
 		if (w_index == BUF_LENGTH)
 			w_index = 0;
+		
+		//wake_up(&wifi_waiter);
 	}
 	
-	OSIntExit();
+	//OSIntExit();
 }
 
 void USB_UART_IRQHandler(void) 
 { 
 	char c;
 	
-	OSIntEnter();
+	//OSIntEnter();
 	
 	if (USART_GetITStatus(USB_USART, USART_IT_RXNE) != RESET) {
-		c = USART_ReceiveData(USB_USART);	
-		
-		if (usb_uart_recv_hook)
-			usb_uart_recv_hook(c);
+		c = USART_ReceiveData(USB_USART);
 
+		//if (usb_w_idx == usb_r_idx)
+			//wake_up(&usb_waiter);
+			
 		usb_rxbuf[usb_w_idx++] = c;
 		
 		if (usb_w_idx == sizeof(usb_rxbuf))
 			usb_w_idx = 0;
+		
+		
 	}
 	
-	OSIntExit();
+	//////OSIntExit();
 }
 
 void wifi_uart_putc(char c)
@@ -118,35 +125,47 @@ void usb_uart_start_rx(void)
 	usb_w_idx = usb_r_idx = 0;
 }
 
-int usb_uart_get_data(u8 *s, u16 len)
+char usb_uart_get_char(void)
 {
-	int i, j;
+	char s;
+
+	while (usb_w_idx == usb_r_idx)
+		msleep(30);
+		//wait_for(&usb_waiter);
+		
+	s = usb_rxbuf[usb_r_idx++];
+		
+	if (usb_r_idx == sizeof(usb_rxbuf))
+		usb_r_idx = 0;	
+	
+	return s;
+}
+
+
+void usb_uart_get_string(u8 *buf, u16 len)
+{
+	int i;
 	
 	for (i = 0; i < len; i++) {
-		j = 0;
-		while (usb_r_idx == usb_w_idx) {
-			msleep(20);
-			j++;
+		while (usb_w_idx == usb_r_idx)
+			msleep(30);
+			//wait_for(&usb_waiter);
 			
-			if (j == 50 && usb_r_idx != 0)
-				return -1;
-		}
-		
-		s[i] = usb_rxbuf[usb_r_idx++];
-		
+		buf[i] = usb_rxbuf[usb_r_idx++];
+			
 		if (usb_r_idx == sizeof(usb_rxbuf))
 			usb_r_idx = 0;	
 	}
-	
-	return 0;
 }
 
 static char wifi_uart_recieve(void)
 {
 	char c;
 	
-	if (r_start == w_index)
-		return '\0';
+	while (r_start == w_index)
+		msleep(50);
+		//return '\0';
+		//wait_for(&wifi_waiter);
 
 	c = RxBuf[r_start];
 	
@@ -253,7 +272,17 @@ void uart_inint(void)
 	USART_ITConfig(WIFI_USART, USART_IT_RXNE , ENABLE); 
 	
 	//usb_uart_recv_hook = wifi_uart_putc;
-	wifi_uart_recv_hook = usb_uart_putc;
+	//wifi_uart_recv_hook = usb_uart_putc;
 	
 	register_bus(wifi_uart_send, wifi_uart_recieve);
+	
+	wait_init(&usb_waiter);
+	wait_init(&wifi_waiter);
+	
+	usb_w_idx = usb_r_idx = 0;
+}
+
+void disable_usb_pass_through(void)
+{
+	wifi_uart_recv_hook = NULL;
 }

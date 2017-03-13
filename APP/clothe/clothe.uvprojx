@@ -509,6 +509,16 @@
               <FileType>1</FileType>
               <FilePath>..\..\common\usart.c</FilePath>
             </File>
+            <File>
+              <FileName>download.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\common\download.c</FilePath>
+            </File>
+            <File>
+              <FileName>watch_dog.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\common\watch_dog.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

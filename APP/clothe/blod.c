@@ -1,7 +1,7 @@
 #include "includes.h"
 #include "priority.h"
 #include "net.h"
-
+#if 0
 #ifdef CLOTHE
 
 static volatile u16 blod;
@@ -62,4 +62,5 @@ void blod_init(void)
 	OSSemCreate(&blod_sem, "blod Sem", 0, &err);
 }
 
+#endif
 #endif

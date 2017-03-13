@@ -320,8 +320,10 @@ void main_loop(void)
 	s8 bulet_used_nr;
 	s8 i;
 	
+	blue_led_on();
+	
 	key_init();
-
+	
 #if 1	
 	net_init();
 					
@@ -329,14 +331,17 @@ void main_loop(void)
 	
 	while (!actived) {
 		active_request();
-		sleep(1);
+		led_off();
+		msleep(500);
+		red_led_on();
+		msleep(500);
 	}
 #endif	
 	set_buletLeft(100);
 	
 	upload_status_data();
 	
-	red_led_on();
+	green_led_on();
 	
 	while (1) {
 		if (key_get_fresh_status())

@@ -475,37 +475,4 @@ void wav_play(void)
 	
 #endif
 }
-
-extern void usb_uart_start_rx(void);
-extern int usb_uart_get_data(u8 *s, u16 len);
-	
-void update_wav_file(void)
-{
-	int i = 0, ret;
-	u8 *buf;
-	
-	buf = malloc(256);
-	if (!buf) {
-		printf("error\n");
-		return;
-	}
-	
-	printf("hello\n");
-	
-	flash_chip_erase();
-	
-	usb_uart_start_rx();
-	
-	while (1) {
-		ret = usb_uart_get_data(buf, 256);
-		if (ret < 0)
-			break;
-		flash_page_write(i, buf);
-
-		i++;
-	}
-	
-	printf("download over!\n");
-}
-
 #endif

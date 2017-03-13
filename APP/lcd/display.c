@@ -9,6 +9,11 @@
 
 extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
+#define ITERM_TASK_STACK_SIZE		1024
+static OS_TCB iterm_task_tcb;
+static CPU_STK iterm_task_stk[ITERM_TASK_STACK_SIZE];
+static PROGBAR_Handle ahProgBar[2];
+
 /*********************************************************************
 *
 *       Palette
@@ -395,7 +400,7 @@ void upiterm_show(void)
 	static GUI_MEMDEV_Handle iterm_hmem = 0;
 	static int f = 0;
 	
-	if (iterm_hmem == 0)
+	if (iterm_hmem == 0) 
 		iterm_hmem = GUI_MEMDEV_Create(0, 0, 480, 20);
 	
 	f = 0;
@@ -441,36 +446,24 @@ void upiterm_show1(void)
 							&AutoDevInfo);
 }
 
-void ProgBarShow(void) {
-	int i;
-	PROGBAR_Handle ahProgBar[2];
-	//
-	// Create the progbars
-	//
-	//ahProgBar[0] = PROGBAR_Create(100,100,100,20, WM_CF_SHOW);
+void ProgBarInit(void) 
+{
 	ahProgBar[1] = PROGBAR_Create(120,240,240,30, WM_CF_SHOW);
-	//
-	// Use memory device (optional, for better looks)
-	//
 
 	PROGBAR_EnableMemdev(ahProgBar[1]);
-	PROGBAR_SetMinMax(ahProgBar[1], 0, 150);
+	PROGBAR_SetMinMax(ahProgBar[1], 0, 120);
 	PROGBAR_SetBarColor(ahProgBar[1], 0, GUI_GREEN);//进度颜色
 	PROGBAR_SetBarColor(ahProgBar[1], 1, GUI_TRANSPARENT | GUI_GRAY);//背景颜色
-	GUI_Delay(500);
-	
-	for (i = 0; i<= 150; i++) {
-		//PROGBAR_SetValue(ahProgBar[0], i);
-		PROGBAR_SetValue(ahProgBar[1], i);
-		GUI_Delay(100);
-	}
-
-	GUI_Delay(500);
-	PROGBAR_Delete(ahProgBar[1]);
 }
 
-static OS_TCB iterm_task_tcb;
-static CPU_STK iterm_task_stk[256];
+void ProgBarShow(int v)
+{	
+	if (v > 120)
+		v = 120;
+	
+	PROGBAR_SetValue(ahProgBar[1], v);
+	msleep(10);
+}
 
 static void update_iterm_task(void)
 {
@@ -501,14 +494,14 @@ void pic_preload(void)
             (void * )0, 
             (OS_PRIO)OS_TASK_TIMER_PRIO, 
             (CPU_STK *)&iterm_task_stk[0], 
-            (CPU_STK_SIZE)128/10, 
-            (CPU_STK_SIZE)128, 
+            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE/10, 
+            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE, 
             (OS_MSG_QTY) 0, 
             (OS_TICK) 0, 
             (void *)0,
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
             (OS_ERR*)&err);	
-			
+		
 	if (home1_hmem == 0)
 		home1_hmem = GUI_MEMDEV_Create(0, 0, 480, 320);
 

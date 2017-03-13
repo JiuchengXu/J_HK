@@ -149,7 +149,6 @@ static int upload_status_data(void)
 	INT2CHAR(data.PowerLeft, get_power());
 	
 	upload_lcd(LCD_LIFE, blod);
-	//sendto_lcd((char *)&data, sizeof(data));
 	msleep(20);
 	return sendto_host((char *)&data, sizeof(data));
 }
@@ -201,11 +200,8 @@ static void recv_gun_handler(char *buf, u16 len)
 		sendto_gun((void *)&ask_data, sizeof(ask_data));
 	} else {
 		if (packTye == GUN_STATUS_TYPE) {
-			//sendto_lcd(buf, len);
 			int value = CHAR2INT(((struct GunStatusData *)data)->bulletLeft);
 			bulet = value;
-			//upload_lcd(LCD_GUN_BULLET, value);
-			//msleep(20);
 		}
 		
 		sendto_host(buf, len);
@@ -236,13 +232,21 @@ static void recv_rifle_handler(char *buf, u16 len)
 static void recv_host_handler(char *buf, u16 len)
 {
 	struct ActiveAskData *data = (void *)buf;
-	u32 packTye;
+	struct MsgPkgResp resp;
+	u32 packType;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
-	if (packTye == ACTIVE_RESPONSE_TYPE) {
+	packType = char2u32(data->packTye, sizeof(data->packTye));
+	if (packType == ACTIVE_RESPONSE_TYPE) {
 		actived = 1;
 		characCode = (u16)char2u32(data->characCode, sizeof(data->characCode));
 		set_time(char2u32(data->curTime, sizeof(data->curTime)));
+	} else if (packType == MESSAGE_TYPE) {
+		memcpy(&resp, data, sizeof(struct MsgPkg));
+		resp.packTye[0] = MESSAGE_RESPONSE_TYPE;
+		resp.rx_ok[0] = '0';
+		sendto_host((char *)&resp, sizeof(resp));
+		msleep(20);
+		sendto_lcd((char *)&resp, sizeof(resp));
 	}
 }
 
@@ -395,6 +399,21 @@ static void net_init(void)
 		err_log("");
 }
 
+void upload_spec_key(u8 *key)
+{
+	struct sepcial_key tmp_key;
+	
+	memset(&tmp_key, '0', sizeof(tmp_key));
+	
+	INT2CHAR(tmp_key.transMod, 0);
+	INT2CHAR(tmp_key.packTye, HEART_BEAT_TYPE);
+	INT2CHAR(tmp_key.packageID, packageID++);
+	key_get_sn(tmp_key.keySN);
+	memcpy(tmp_key.AkeySN, key, sizeof(tmp_key.AkeySN));
+	
+	sendto_host((char *)&tmp_key, sizeof(tmp_key));
+}
+
 void main_loop(void)
 {
 	u16 charcode;
@@ -408,15 +427,15 @@ void main_loop(void)
 		
 	start_clothe_tasks();
 	
+	/*
 	while (!actived) {
 		active_request();
 		sleep(1);
 	}
+	*/
 		
-	red_led_on();	
-	beep_on();
-	sleep(1);
-	beep_off();
+	red_led_on();
+	ok_notice();	
 	
 	upload_status_data();
 	

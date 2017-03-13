@@ -7,6 +7,8 @@
 #define CLOTHES_STATUS_TYPE		3
 #define STATUS_RESPONSE_TYPE	4
 #define HEART_BEAT_TYPE			5
+#define MESSAGE_TYPE			6
+#define MESSAGE_RESPONSE_TYPE	7
 
 
 #define STOP_WORK				6
@@ -99,6 +101,29 @@ struct HeartBeat {
 	char deviceType [1];
 	char deviceSubType [1];
 	char deviceSN [16];
+};
+
+struct MsgPkg {
+	char transMod [1];
+	char packTye[1];
+	char packageID [4];
+	char msg_type[1];
+};
+
+struct MsgPkgResp {
+	char transMod [1];
+	char packTye[1];
+	char packageID [4];
+	char msg_type[1];
+	char rx_ok[1];
+};
+
+struct sepcial_key {
+	char transMod [1];
+	char packTye[1];
+	char packageID [4];
+	char keySN[16];
+	char AkeySN [16];
 };
 
 void main_loop(void);

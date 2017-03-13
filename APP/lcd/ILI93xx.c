@@ -141,40 +141,15 @@ void TFTLCD_Init(void)
 		
 		init_flag = 1;
 		
-		   /* tft control gpio init */	 
-
-		//GPIO_SetBits(GPIOA, GPIO_Pin_12);
-	//	GPIO_SetBits(GPIOA, GPIO_Pin_12);
-		//msleep(20);
-		//GPIO_ResetBits(GPIOA, GPIO_Pin_12);		 // RST = 0
+		/* tft control gpio init */	 
 		GPIO_ResetBits(GPIOA, GPIO_Pin_12);
 		msleep(200);
-		//sleep(5);
-		//GPIO_SetBits(GPIOA, GPIO_Pin_12);		 // RST = 1
 		GPIO_SetBits(GPIOA, GPIO_Pin_12);
 		msleep(200);
-			
-		WriteComm(0xda);
-		dummy = ReadData();
-		id[0] = ReadData();
-		
-		WriteComm(0xdb);
-		dummy = ReadData();
-		id[1] = ReadData();
-		
-		WriteComm(0xdc);
-		dummy = ReadData();
-		id[2] = ReadData();
-		
-		id[0] = id[0];
-		id[1] = id[1];
-		id[2] = id[2];
 	}
-	
-	
-			
+		
 	WriteComm(0x01);
-	sleep(2);	
+	msleep(200);
 #if 0
 	
 	WriteComm(0x00B3);
@@ -298,7 +273,7 @@ void TFTLCD_Init(void)
     writedata(0x57);
     delay(50);*/
 
-     writecommand(0xB6); //Set VCOM voltage
+    writecommand(0xB6); //Set VCOM voltage
     //writedata(0x2C);    //0x52 for HSD 3.0"
 	writedata(0x40); 
 	writedata(0x10); 
@@ -382,7 +357,7 @@ void TFTLCD_Init(void)
     delay(20);
 	
 	writecommand(0x29); // Display on
-	sleep(2);
+	//sleep(2);
 	
     //writecommand(0x21); //Display inversion on
 	

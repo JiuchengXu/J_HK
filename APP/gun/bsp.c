@@ -385,14 +385,13 @@ void  BSP_Init (void)
 	uart_inint();
 	esp8266_init();
 	i2c_init();
-	e2prom_init();
+	e2prom_onboard_init();	
 	SPI3_init();	
-	beep_init();
-	
+	beep_init();	
+	download_task_init();
 	led_38k_init();
 	I2S_Bus_Init();
 	wav_pre_read();
 	bulet_box_init();
 	trigger_init();
-
 }

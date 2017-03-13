@@ -30,40 +30,18 @@ void e2prom_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 Address,u8 *ReadBuffer,u16
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED));
 
 	while (ReadNumber) {
-		int timeout = 7200;
+		int timeout = 720000;
 		if (ReadNumber == 1) {
 			I2C_AcknowledgeConfig(I2C, DISABLE);  
 			I2C_GenerateSTOP(I2C, ENABLE); 
 		}
 
 		while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_RECEIVED) && timeout--); 
+		//while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_RECEIVED)); 
 		*ReadBuffer++ = I2C_ReceiveData(I2C);
 		ReadNumber--;
 	}
 	I2C_AcknowledgeConfig(I2C, ENABLE);
-	
-	OSSchedUnlock(&err);
-}
-
-static void e2prom_WaitForComplete(I2C_TypeDef *I2C, u8 slave_addr)
-{
-	vu16 SR1_Tmp;
-	OS_ERR err;
-	
-	OSSchedLock(&err);
-	
-	do {
-		I2C_GenerateSTART(I2C, ENABLE); 
-
-		SR1_Tmp = I2C_ReadRegister(I2C, I2C_Register_SR1); 
-
-		I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Transmitter);
-	} while (!(I2C_ReadRegister(I2C, I2C_Register_SR1) & 0x0002)); 
-
-
-	I2C_ClearFlag(I2C, I2C_FLAG_AF);  
-
-	I2C_GenerateSTOP(I2C, ENABLE);
 	
 	OSSchedUnlock(&err);
 }
@@ -89,15 +67,16 @@ void e2prom_WriteByte(I2C_TypeDef *I2C, u8 slave_addr, u8 Address,u8 WriteData)
 
 
 	I2C_GenerateSTOP(I2C, ENABLE);  
-
-	e2prom_WaitForComplete(I2C, slave_addr);
 	
 	OSSchedUnlock(&err);
+	
+	msleep(10);
 }
 
-void e2prom_WritePage(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData, u16 WriteNumber)
+void e2prom_WritePage(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData, u8 page_size)
 {
 	OS_ERR	err;
+	u8 WriteNumber = page_size;
 	
 	OSSchedLock(&err);
 	
@@ -121,8 +100,22 @@ void e2prom_WritePage(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData
 	I2C_GenerateSTOP(I2C, ENABLE);
 	
 	OSSchedUnlock(&err);
+	
+	msleep(10);
 }
 
+void e2prom_WriteBytes(I2C_TypeDef *I2C, u8 slave_addr, u8 Address,u8 *WriteData, u16 WriteNumber, u8 page_size)
+{
+	int page_num  = WriteNumber / page_size;
+	int page_mod = WriteNumber % page_size;
+	int i, j;
+	
+	for (i = 0; i < page_num; i++)
+		e2prom_WritePage(I2C, slave_addr, Address + 8 * i, &WriteData[8 * i], page_size);
+	
+	for (j = 0; j < page_mod; j++)
+		e2prom_WriteByte(I2C, slave_addr, Address + 8 * i + j, WriteData[8 * i + j]);
+}
 #if 0
 
 extern void i2c_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *ReadBuffer, u16 ReadNumber);

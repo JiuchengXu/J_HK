@@ -61,7 +61,7 @@ extern void pic_preload(void);
 extern void show_background(void);
 extern void show_home(void);
 extern void upiterm_show(int);
-extern void ProgBarShow(void);
+extern void ProgBarShow(int);
 
 static s8 sendto_host(char *buf, u16 len)
 {
@@ -207,9 +207,12 @@ static void start_gun_tasks(void)
             (OS_ERR*)&err);	
 }
 
+static int prog_val = 0;
+
 static void net_init(void)
 {
 	u8 i;
+		
 	char host[20] = "CSsub", host_passwd[20] = "12345678", \
 	    ip[16];
 		
@@ -230,12 +233,14 @@ static void net_init(void)
 	if (set_mode(1) < 0)
 		err_log("set_mode");
 	
+	prog_val += 50;
+	
 	if (connect_ap(host, host_passwd, 3) < 0)
 		err_log("connect_ap");
 	
 	if (set_ip(ip) < 0)
 		err_log("set_ip");
-		
+	
 	if (set_mux(1) < 0)
 		err_log("set_mux");
 	
@@ -250,12 +255,16 @@ static void net_init(void)
 	
 	start_gun_tasks();
 	
+	prog_val += 30;
+	
 	ping(GUN_IP);
 	
 	while (!actived) {
 		active_request();
 		sleep(1);
 	}
+	
+	prog_val += 40;
 }
 
 u8 blod[100], bulet[100];
@@ -291,26 +300,33 @@ void main_loop(void)
 	
 	GUI_Clear();
 	
+	GUI_Delay(100);
+	
+	pic_preload();
+	
+	show_background();
+		
 	backlight_on();
 	
 	GUI_Delay(100);
 	
-	pic_preload();
-		
+	ProgBarInit();
+
+	//GUI_Delay(100);
+				
 	key_init();
 	
-	show_background();
-	
 	start_net_init_task();
-	
-	ProgBarShow();
 
+	while (prog_val < 110) {
+		ProgBarShow(prog_val);
+		GUI_Delay(100);
+	}
+	
 	show_home();
 	
-	beep_on();
-	sleep(2);
-	beep_off();
-		
+	ok_notice();
+			
 #if 1			
 	while (1) {
 		int keyboard = get_keyboard_value();

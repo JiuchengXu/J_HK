@@ -1,4 +1,5 @@
 #include "includes.h"
+#include "helper.h"
 
 #if defined(CLOTHE) || defined(GUN)
 #define BEEP_GPIO		GPIOA
@@ -72,4 +73,11 @@ void beep_off(void)
 void beep_init(void)
 {
 	TIM_PWM_Init(0xa000,1000);
+}
+
+void ok_notice(void)
+{		
+	beep_on();
+	sleep(2);
+	beep_off();
 }
