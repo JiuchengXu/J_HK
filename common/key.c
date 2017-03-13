@@ -210,7 +210,7 @@ void key_init(void)
  	GPIO_Init(KEY_INT_GPIO, &GPIO_InitStructure);
 	
 	while (1) {
-		red_intival();
+		blue_intival();
 		
 		if (key_get_gpio()) {
 			msleep(200);

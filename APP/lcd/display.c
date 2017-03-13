@@ -465,6 +465,13 @@ void ProgBarShow(int v)
 	msleep(10);
 }
 
+void ProgBarDelete(void)
+{
+	GUI_Delay(500);
+	
+	PROGBAR_Delete(ahProgBar[1]);
+}
+
 static void update_iterm_task(void)
 {
 	//GUI_AUTODEV AutoDev;

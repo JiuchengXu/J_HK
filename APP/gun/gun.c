@@ -333,7 +333,7 @@ void main_loop(void)
 		active_request();
 		led_off();
 		msleep(500);
-		red_led_on();
+		blue_led_on();
 		msleep(500);
 	}
 #endif	

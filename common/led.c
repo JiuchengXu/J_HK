@@ -38,6 +38,18 @@ void red_intival(void)
 	}
 }
 
+void blue_intival(void)
+{
+	static s8 val = 1;
+	
+	if (val == 1) {
+		blue_led_on();
+		val = 0;
+	} else {
+		led_off();
+		val = 1;
+	}
+}
 void LED_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;

@@ -193,18 +193,18 @@
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>54</LineNumber>
+          <LineNumber>317</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134285990</Address>
+          <Address>134288774</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>D:\绁炶垷\final\common\download.c</Filename>
+          <Filename>D:\绁炶垷\final\APP\lcd\lcd.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\lcd\../../common/download.c\54</Expression>
+          <Expression>\\lcd\lcd.c\317</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>

@@ -66,44 +66,43 @@ void WIFI_IRQHandler(void)
 {
 	char c;
 	
-	//OSIntEnter(); 
+	OSIntEnter(); 
 	
 	if(USART_GetITStatus(WIFI_USART, USART_IT_RXNE) != RESET) {
-		c = RxBuf[w_index++] = USART_ReceiveData(WIFI_USART);
+		c = RxBuf[w_index] = USART_ReceiveData(WIFI_USART);
+		
+		if (w_index == r_start)
+			wake_up(&wifi_waiter);
 		
 		if (wifi_uart_recv_hook)
 			wifi_uart_recv_hook(c);
 		
-		if (w_index == BUF_LENGTH)
-			w_index = 0;
-		
-		//wake_up(&wifi_waiter);
+		if (++w_index == BUF_LENGTH)
+			w_index = 0;		
 	}
 	
-	//OSIntExit();
+	OSIntExit();
 }
 
 void USB_UART_IRQHandler(void) 
 { 
 	char c;
 	
-	//OSIntEnter();
+	OSIntEnter();
 	
 	if (USART_GetITStatus(USB_USART, USART_IT_RXNE) != RESET) {
 		c = USART_ReceiveData(USB_USART);
 
-		//if (usb_w_idx == usb_r_idx)
-			//wake_up(&usb_waiter);
+		if (usb_w_idx == usb_r_idx)
+			wake_up(&usb_waiter);
 			
 		usb_rxbuf[usb_w_idx++] = c;
 		
 		if (usb_w_idx == sizeof(usb_rxbuf))
-			usb_w_idx = 0;
-		
-		
+			usb_w_idx = 0;	
 	}
 	
-	//////OSIntExit();
+	OSIntExit();
 }
 
 void wifi_uart_putc(char c)
@@ -130,8 +129,8 @@ char usb_uart_get_char(void)
 	char s;
 
 	while (usb_w_idx == usb_r_idx)
-		msleep(30);
-		//wait_for(&usb_waiter);
+		//msleep(30);
+		wait_for(&usb_waiter);
 		
 	s = usb_rxbuf[usb_r_idx++];
 		
@@ -148,8 +147,8 @@ void usb_uart_get_string(u8 *buf, u16 len)
 	
 	for (i = 0; i < len; i++) {
 		while (usb_w_idx == usb_r_idx)
-			msleep(30);
-			//wait_for(&usb_waiter);
+			//msleep(30);
+			wait_for(&usb_waiter);
 			
 		buf[i] = usb_rxbuf[usb_r_idx++];
 			
@@ -163,9 +162,9 @@ static char wifi_uart_recieve(void)
 	char c;
 	
 	while (r_start == w_index)
-		msleep(50);
+		//msleep(50);
 		//return '\0';
-		//wait_for(&wifi_waiter);
+		wait_for(&wifi_waiter);
 
 	c = RxBuf[r_start];
 	
@@ -272,7 +271,7 @@ void uart_inint(void)
 	USART_ITConfig(WIFI_USART, USART_IT_RXNE , ENABLE); 
 	
 	//usb_uart_recv_hook = wifi_uart_putc;
-	//wifi_uart_recv_hook = usb_uart_putc;
+	wifi_uart_recv_hook = usb_uart_putc;
 	
 	register_bus(wifi_uart_send, wifi_uart_recieve);
 	

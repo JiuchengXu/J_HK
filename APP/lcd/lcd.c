@@ -232,11 +232,12 @@ static void net_init(void)
 	
 	if (set_mode(1) < 0)
 		err_log("set_mode");
-	
-	prog_val += 50;
+		
 	
 	if (connect_ap(host, host_passwd, 3) < 0)
 		err_log("connect_ap");
+	
+	prog_val = 50;
 	
 	if (set_ip(ip) < 0)
 		err_log("set_ip");
@@ -255,16 +256,18 @@ static void net_init(void)
 	
 	start_gun_tasks();
 	
-	prog_val += 30;
+	prog_val = 80;
 	
 	ping(GUN_IP);
+	
+	prog_val = 110;
 	
 	while (!actived) {
 		active_request();
 		sleep(1);
 	}
 	
-	prog_val += 40;
+	prog_val = 120;
 }
 
 u8 blod[100], bulet[100];
@@ -293,6 +296,7 @@ void main_loop(void)
 	int bulet_left_bak, life_left_bak;
 	int need_reflash = 0;
 	int keyboard_bak = 1;
+	int tmp_progress = 0;
 	
 	GUI_Init();
 	
@@ -311,17 +315,26 @@ void main_loop(void)
 	GUI_Delay(100);
 	
 	ProgBarInit();
-
-	//GUI_Delay(100);
 				
 	key_init();
 	
 	start_net_init_task();
-
-	while (prog_val < 110) {
-		ProgBarShow(prog_val);
-		GUI_Delay(100);
+	
+	while (tmp_progress < 110) {
+		tmp_progress += 10;
+		if (tmp_progress > prog_val)
+			ProgBarShow(tmp_progress);
+		else {
+			tmp_progress = prog_val;
+			ProgBarShow(tmp_progress);
+		}
+		
+		GUI_Delay(1000);
 	}
+	
+	ProgBarDelete();
+	
+	GUI_Delay(100);
 	
 	show_home();
 	

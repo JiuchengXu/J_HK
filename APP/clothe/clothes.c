@@ -434,10 +434,14 @@ void main_loop(void)
 	}
 	*/
 		
-	red_led_on();
+	green_led_on();
+	
 	ok_notice();	
 	
 	upload_status_data();
+	
+	while (1)
+		sleep(1);
 	
 	while (1) {						
 		if ((charcode = irda_get_shoot_info()) != 0 && blod > 0) {
