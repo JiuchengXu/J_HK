@@ -394,4 +394,5 @@ void  BSP_Init (void)
 	wav_pre_read();
 	bulet_box_init();
 	trigger_init();
+	adc_init();
 }

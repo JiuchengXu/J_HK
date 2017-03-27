@@ -7,8 +7,6 @@
 #include "power.h"
 #include "malloc.h"
 #include "GUI.h"
-#include "GUI.h"
-
 
 #ifdef LCD
 #define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 1)
@@ -100,12 +98,12 @@ static void recv_host_handler1(char *buf, u16 len)
 	struct ClothesStatusData *data1 = (void *)buf;	
 	u32 packTye;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
+	packTye = char2u32_16(data->packTye, sizeof(data->packTye));
 	
 	if (packTye == CLOTHES_STATUS_TYPE) {
-		life_left = (s16)char2u32(data1->lifeLeft, sizeof(data1->lifeLeft));
+		life_left = (s16)char2u32_16(data1->lifeLeft, sizeof(data1->lifeLeft));
 	} else if (packTye == GUN_STATUS_TYPE) {
-		bulet_left = (s16)char2u32(data->bulletLeft, sizeof(data->bulletLeft));
+		bulet_left = (s16)char2u32_16(data->bulletLeft, sizeof(data->bulletLeft));
 	
 	}	
 }
@@ -133,8 +131,10 @@ static void recv_host_handler(char *buf, u16 len)
 	} else if (packType == ACTIVE_RESPONSE_TYPE) {
 		struct LcdActiveAskData *data = (void *)buf;
 
-		set_time(char2u32(data->rtc, sizeof(data->rtc)));
+		set_time(char2u32_16(data->rtc, sizeof(data->rtc)));
 		actived = 1;
+	} else if (packType == MESSAGE_TYPE) {
+		struct MsgPkg msg;
 	}
 }
 
@@ -299,11 +299,13 @@ void main_loop(void)
 	int tmp_progress = 0;
 	
 	GUI_Init();
-	
+
 	GUI_SetBkColor(GUI_BLACK);
 	
 	GUI_Clear();
 	
+	XBF_font_init();
+		
 	GUI_Delay(100);
 	
 	pic_preload();
@@ -317,6 +319,8 @@ void main_loop(void)
 	ProgBarInit();
 				
 	key_init();
+	
+	show_background();
 	
 	start_net_init_task();
 	
@@ -339,6 +343,8 @@ void main_loop(void)
 	show_home();
 	
 	ok_notice();
+	
+	//watch_dog_feed_task_init();
 			
 #if 1			
 	while (1) {

@@ -1,6 +1,7 @@
 #include "stm32f10x.h"
 #include "stm32f10x_spi.h"
 #include "includes.h"
+#include "helper.h"
 
 #define FLASH_PAGE_SIZE		256
 #define FLASH_SECTOR_SIZE	4096
@@ -23,7 +24,8 @@
 #define W25X_FastReadData		0x0B 
 #define W25X_FastReadDual		0x3B 
 #define W25X_PageProgram		0x02 
-#define W25X_BlockErase			0xD8 
+#define W25X_64K_BlockErase		0xD8
+#define W25X_32K_BlockErase		0x52
 #define W25X_SectorErase		0x20 
 #define W25X_ChipErase			0xC7 
 #define W25X_PowerDown			0xB9 
@@ -241,10 +243,30 @@ void flash_page_write(uint32_t page, uint8_t *data)
 	FlashWaitBusy();
 }
 
-void flash_sector_erase(uint32_t sector)
-{
-	u32 WriteAddr = sector * FLASH_PAGE_SIZE;
+void flash_page_write_addr(uint32_t addr, uint8_t *data)
 
+{
+	uint16_t i;	
+	u32 WriteAddr = addr;
+
+	FlashWEL();
+	
+	FLASH_CS_0();
+
+    spi_write_byte(W25X_PageProgram);      //??????   
+    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+    spi_write_byte((u8)((WriteAddr)>>8));   
+    spi_write_byte((u8)0);   
+	
+    for(i = 0; i < FLASH_PAGE_SIZE; i++)
+		spi_write_byte(data[i]);
+
+	FLASH_CS_1();
+	FlashWaitBusy();
+}
+
+void flash_sector_erase(uint32_t WriteAddr)
+{
 	FlashWEL();
 	
 	FLASH_CS_0();
@@ -255,7 +277,63 @@ void flash_sector_erase(uint32_t sector)
     spi_write_byte((u8)WriteAddr);   	
 	
 	FLASH_CS_1();
+	msleep(100);
+	
 	FlashWaitBusy();	
+}
+
+void flash_block_erase32k(uint32_t WriteAddr)
+{
+	FlashWEL();
+	
+	FLASH_CS_0();
+	
+    spi_write_byte(W25X_32K_BlockErase);      //??????   
+    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+    spi_write_byte((u8)((WriteAddr)>>8));   
+    spi_write_byte((u8)WriteAddr);   	
+	
+	FLASH_CS_1();
+	
+	msleep(120);
+	FlashWaitBusy();
+}
+
+void flash_block_erase64k(uint32_t WriteAddr)
+{
+	FlashWEL();
+	
+	FLASH_CS_0();
+	
+    spi_write_byte(W25X_64K_BlockErase);      //??????   
+    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+    spi_write_byte((u8)((WriteAddr)>>8));   
+    spi_write_byte((u8)WriteAddr);   	
+	
+	FLASH_CS_1();
+	
+	msleep(150);
+	FlashWaitBusy();
+}
+
+void flash_erase(uint32_t addr, int len)
+{	
+	int i;
+	
+	len = len / (64 * 1024 - 1) + 1;
+	
+	for (i = 0; i < len; i++)
+		flash_block_erase64k(addr + i * (64 * 1024));
+}
+
+u32 get_sector_size(void)
+{
+	return FLASH_SECTOR_SIZE;
+}
+
+u32 get_page_size(void)
+{
+	return FLASH_PAGE_SIZE;
 }
 
 void flash_chip_erase(void)
@@ -299,8 +377,9 @@ u8 spi_r_data[256];
 
 void spi_flash_test(void)
 {
-	flash_sector_erase(0);
+	//flash_sector_erase(0);
+	flash_erase(0, 1024 * 1024);
 	
 	flash_page_write(0, spi_data);
-	flash_page_read(0, spi_r_data);
+	flash_bytes_read(0, spi_r_data, 256);
 }

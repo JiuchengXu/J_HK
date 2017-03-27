@@ -4,6 +4,8 @@
 #include "time.h"
 #include "mutex.h"
 
+static s8 init_flag = 0;
+
 static u8 RTC_Set(u32 seccount)
 {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);	//使能PWR和BKP外设时钟  
@@ -86,11 +88,16 @@ void RTC_IRQHandler(void)
 
 void set_time(u32 time)
 {
+	init_flag = 1;
+	
 	RTC_Init(time);
 }
 
 u32 get_time(u8 *h, u8 *m, u8 *sec)
 {
+	if (init_flag == 0)
+		return 0;
+	
 	time_t time = RTC_GetCounter();	
 	struct tm *t = localtime(&time);
 	

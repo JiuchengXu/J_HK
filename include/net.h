@@ -9,11 +9,13 @@
 #define HEART_BEAT_TYPE			5
 #define MESSAGE_TYPE			6
 #define MESSAGE_RESPONSE_TYPE	7
+#define SPECIAL_KEY_TYPE		8
+#define IP_CHANGE_TYPE			9
 
 
-#define STOP_WORK				6
-#define START_WORK				7
-#define LCD_MSG					8
+#define STOP_WORK				0xf
+#define START_WORK				0xe
+#define LCD_MSG					0xd
 
 struct ActiveRequestData {
 	char transMod [1];
@@ -49,6 +51,12 @@ struct LcdActiveAskData {
 	char rtc[8];	
 };
 
+struct attacked_info {
+	char characCode [10][4];
+	char attachTime [10][8];
+	char ifHeadShot[10][1];	
+};
+
 struct ClothesStatusData  {
 	char transMod [1];
 	char packTye[1];
@@ -57,9 +65,13 @@ struct ClothesStatusData  {
 	char deviceSubType [1];
 	char lifeLeft [3];
 	char keySN [16];
+#if 0
 	char characCode [10][4];
 	char attachTime [10][8];
 	char ifHeadShot[10][1];
+#else
+	struct attacked_info atck_info;
+#endif
 	char PowerLeft [2];
 };
 
@@ -124,6 +136,13 @@ struct sepcial_key {
 	char packageID [4];
 	char keySN[16];
 	char AkeySN [16];
+};
+
+struct sta_ip_change_pkg {
+	char transMod [1];
+	char packTye[1];
+	char packageID [4];
+	char KeySN[16];
 };
 
 void main_loop(void);

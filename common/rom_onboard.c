@@ -45,22 +45,27 @@ void e2prom_onboard_Reads(u8 Address, u8 *ReadBuffer, u16 ReadNumber)
 	e2prom_Reads(I2C, AT24Cx_Address, Address, ReadBuffer, ReadNumber);
 }
 
-void e2prom_onboard_Writes(u8 Address,u8 *WriteData,u16 WriteNumber)
+void e2prom_onboard_Writes(u8 Address,u8 *WriteData, u16 WriteNumber)
 {
 	e2prom_WriteBytes(I2C, AT24Cx_Address, Address, WriteData, WriteNumber, AT24Cx_PageSize);
 }
 
-static u8 eeprom[] = "SN145784541458890000015332453214253064064", test_eeprom[100]; //ÕæÒÂ·þ
+static u8 eeprom[] = "SN145784541458890000015332453214253064064", test_eeprom[100];
 
 void e2prom_test(void)
 {
 	e2prom_onboard_Reads(0, test_eeprom, sizeof(eeprom));
+	//IrDA_Reads(I2C1, 0XA0, 0, test_eeprom, sizeof(eeprom));
 	
 	memset(test_eeprom, 0, 100);
 	
 	e2prom_onboard_Writes(0, eeprom, sizeof(eeprom));
 	
 	e2prom_onboard_Reads(0, test_eeprom, sizeof(eeprom));
+	
+	printf("%s\n", test_eeprom);
+	
+	while (1);
 	
 	//printf("%s\n", test_eeprom);
 }

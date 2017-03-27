@@ -6,17 +6,40 @@
 
 #ifdef CLOTHE
 #define I2C_OP_CODE_GET_INFO	1
-#define I2C_OP_CODE_LED_COLOR	2
+#define I2C_OP_CODE_FAYANQIU	2
+#define I2C_OP_CODE_GET_SW_VR	3
+#define I2C_OP_CODE_GET_HW_VR	4
+#define I2C_OP_CODE_SET_LEDS	5
 
-#if 0
-void IrDA_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadNumber)
+#define I2C_OP_CODE_SET_RED		0X80
+#define I2C_OP_CODE_SET_GREEN	0x40
+#define I2C_OP_CODE_SET_BLUE	0x20
+#define I2C_OP_CODE_SET_YELLOW	0x10
+
+#define RECV_MOD_SA_BASE			0x10
+#define CLOTHE_RECEIVE_MODULE_NUMBER	8
+#define IRDA_I2C			I2C1
+
+struct  recv_info {
+	u16 charcode;
+	u8 status;
+	u8 revr;
+};
+
+static u32 recv_offline_map;
+
+extern int i2c_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *ReadBuffer, u16 ReadNumber);
+extern int i2c_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData, u16 WriteNumber);
+
+#if 1
+int IrDA_Reads(u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadNumber)
 {
-	i2c_Reads(I2C, slave_addr, op, ReadBuffer, ReadNumber);
+	return i2c_Reads(IRDA_I2C, slave_addr, op, ReadBuffer, ReadNumber);
 }
 
-void IrDA_WriteBytes(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *WriteData, u16 WriteNumber)
+int IrDA_Writes(u8 slave_addr, u8 op, u8 *WriteData, u16 WriteNumber)
 {
-	
+	return i2c_Writes(IRDA_I2C, slave_addr, op, WriteData, WriteNumber);
 }
 
 #else
@@ -36,32 +59,32 @@ int IrDA_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadN
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
 
 	if (timeout == 0)
-		goto restart;
+		goto out;
 	
 	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Transmitter);
 	timeout = 72000;
 	while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --timeout);
 	if (timeout == 0)
-		goto restart;
+		goto out;
 	
 	I2C_SendData(I2C, op);
 	timeout = 72000;
 	
 	while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED)  && --timeout ); 
 	if (timeout == 0)
-		goto restart;
+		goto out;
 		
 	I2C_GenerateSTART(I2C, ENABLE);
 	timeout = 72000;
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
 	if (timeout == 0)
-		goto restart;
+		goto out;
 
 	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Receiver);
 	timeout = 72000;	
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)&& --timeout);
 	if (timeout == 0)
-		goto restart;
+		goto out;
 	
 	while (ReadNumber) {
 		timeout = 7200;
@@ -72,7 +95,7 @@ int IrDA_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadN
 
 		while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_RECEIVED) && --timeout); 
 		if (timeout == 0)
-			goto restart;
+			goto out;
 		//while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_RECEIVED)); 
 		*ReadBuffer = I2C_ReceiveData(I2C);
 		ReadBuffer++;
@@ -81,14 +104,14 @@ int IrDA_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadN
 	
 	ret = 0;
 	
-restart:	
+out:	
 	I2C_AcknowledgeConfig(I2C, ENABLE);
 	OSSchedUnlock(&err);
 	
 	return ret;
 }
 
-void IrDA_WriteBytes(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *WriteData, u16 WriteNumber)
+void IrDA_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *WriteData, u16 WriteNumber)
 {
 	while(I2C_GetFlagStatus(I2C, I2C_FLAG_BUSY));
 
@@ -110,41 +133,85 @@ void IrDA_WriteBytes(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *WriteData, u16 
 	I2C_GenerateSTOP(I2C, ENABLE);
 }
 #endif
-extern s8 get_actived_state(void);
-	struct  recv_info {
-		u16 charcode;
-		u8 status;
-		u8 revr;
-	};
 	
-u16 irda_get_shoot_info(void)
+int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 {
-	u16 charcode;
-	u8 status[4];
+	u8 status;
+	int ret = 0;
 	int i;
-	u8 buf[3];
 	struct recv_info info;
-
-	memset(status, 254, sizeof(status));
+	u16 temp_charcode;
+	s8 temp_head_shoot;
 	
-	for (i = 0; i < 4; i++) {
-		if (IrDA_Reads(I2C1, 0x50 + (i << 1), I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) == 0) {
-		
-			status[i] = info.status;	
+	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++) {
+		if (recv_offline_map & (1 << i)) {
+			charcode[i] = 0;
+			head_shoot[i] = 0;
 			
-			switch (status[i]) {
+			continue;
+		}
+		
+		if (IrDA_Reads((RECV_MOD_SA_BASE + i) << 1, I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) == 0) {
+		
+			status = info.status;	
+			
+			switch (status) {
 				case 0:
-					charcode = info.charcode;
-					return charcode;
+					charcode[i] = info.charcode;
+					if (i >= 5)
+						head_shoot[i] = 1;//±¬Í·
+					else
+						head_shoot[i] = 0;
+					
+					ret = 1;
+					break;
 				case 1:
+					charcode[i] = 0;
+					head_shoot[i] = 0;
 					break;
 				case 255:
 					err_log("cound't support command\n");
 			}				
-		}
-	}		
+		} else 
+			recv_offline_map |= 1 << i;
+			
+	}
+	
+	return ret;
+}
+
+int IrDA_cmd(int cmd, int id, u8 *buf, int len)
+{
+	if (IrDA_Reads((RECV_MOD_SA_BASE + id) << 1, cmd, buf, len) != 0)
+		return -1;
+	else if (IrDA_Writes((RECV_MOD_SA_BASE + id) << 1, cmd, buf, len) != 0)
 	
 	return 0;
+}
+
+int IrDA_led(int id, int color)
+{
+	if (recv_offline_map & (1 << id))
+		return -1;
+	
+	return IrDA_Writes((RECV_MOD_SA_BASE + id) << 1, I2C_OP_CODE_SET_LEDS | color, NULL, 0);
+}
+
+void IrDA_init(void)
+{
+	int i;
+	u16 charcode;
+	u8 status[4];
+	u8 buf[3];
+	struct recv_info info;
+	
+	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++) {		
+		if (IrDA_Reads((RECV_MOD_SA_BASE + i) << 1, I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) != 0) {
+			recv_offline_map |= 1 << i;
+		} else
+			if (IrDA_led(i, I2C_OP_CODE_SET_RED) != 0)
+				printf("err\n");
+	}
 }
 
 #endif

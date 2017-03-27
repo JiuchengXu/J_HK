@@ -485,11 +485,6 @@
               <FilePath>..\..\common\bus.c</FilePath>
             </File>
             <File>
-              <FileName>e2prom.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\common\e2prom.c</FilePath>
-            </File>
-            <File>
               <FileName>esp8266.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\common\esp8266.c</FilePath>
@@ -538,6 +533,11 @@
               <FileName>download.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\common\download.c</FilePath>
+            </File>
+            <File>
+              <FileName>e2prom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\common\e2prom.c</FilePath>
             </File>
             <File>
               <FileName>watch_dog.c</FileName>

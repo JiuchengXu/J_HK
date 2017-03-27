@@ -119,6 +119,12 @@ static s8 exe_cmd(char *cmd)
 	return -1;
 }
 
+s8 get_ip(void)
+{
+	sprintf(temp, "AT+CIFSR\r\n");
+	return exe_cmd(temp);	
+}
+
 s8 set_mode(u8 mode)
 {
 	sprintf(temp, "AT+CWMODE=%d\r\n", mode);	

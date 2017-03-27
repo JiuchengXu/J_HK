@@ -4,18 +4,11 @@
 #include "priority.h"
 #include "key.h"
 
-#ifdef CLOTHE
+#if defined(CLOTHE) || defined(GUN)
 #define I2C                   I2C2
 #define KEY_INT_GPIO			GPIOA
 #define KEY_INT_GPIO_PIN		GPIO_Pin_0
 #define KEY_INT_RCC				RCC_APB2Periph_GPIOA
-#endif
-
-#ifdef GUN
-#define I2C                   I2C1
-#define KEY_INT_GPIO			GPIOA
-#define KEY_INT_GPIO_PIN		GPIO_Pin_0
-#define KEY_INT_RCC			RCC_APB2Periph_GPIOA
 #endif
 
 #ifdef LCD
@@ -25,10 +18,16 @@
 #define KEY_INT_RCC				RCC_APB2Periph_GPIOB
 #endif
 
-
 #define AT24Cx_Address           0xa6
-#define AT24Cx_PageSize          8 
+#define AT24Cx_PageSize          8
+#define AT24Cx_capacity			256
 
+#define WIFI_ID_PAWD_LEN	20
+#define WIFI_SSID		"TP-LINK_1DCE"
+#define WIFI_PASSWD		"Liu18717388501"
+#define WIFI_POSITION		(AT24Cx_capacity - WIFI_ID_PAWD_LEN * 2)
+
+#define OS_TASK_STACK_SIZE   	 128
 
 struct eeprom_key_info {
 	char sn[16];
@@ -36,6 +35,9 @@ struct eeprom_key_info {
 	char ip_suffix[3];
 	char blod_def[3];
 	char menoy[3];
+	char host_ip[4][3];
+	char ssid[WIFI_ID_PAWD_LEN];
+	char passwd[WIFI_ID_PAWD_LEN]; 
 };
 
 struct eeprom_special_key {
@@ -54,7 +56,7 @@ enum {
 	KEY_UNUSED,
 };
 
-#define OS_TASK_STACK_SIZE   	 128
+extern void upload_spec_key(u8 *key);
 
 static CPU_STK  TaskStk[OS_TASK_STACK_SIZE];
 static OS_TCB TaskStkTCB;
@@ -65,10 +67,8 @@ static struct eeprom_special_key spec_key;
 static volatile s8 key_fresh_status;
 
 //char eeprom[] = "SN145784541458900000015332453213252064064";//假衣服
-static char eeprom[] = "SN145784541458890000015332453214253064064"; //真衣服
+static char eeprom[] = "s0000000000000010000015332457447253064064"; //真衣服
 //char eeprom[] = "SN145784541458880000015332453215252064064";
-
-extern void upload_spec_key(u8 *key);
 
 static void key_Reads(u8 Address, u8 *ReadBuffer, u16 ReadNumber)
 {
@@ -83,9 +83,9 @@ static void key_Writes(u8 Address, u8 *WriteData, u16 WriteNumber)
 
 static void read_key_from_eeprom(void)
 {
-	memcpy(&gen_key, eeprom, sizeof(eeprom));
+	//memcpy(&gen_key, eeprom, sizeof(eeprom));
 	
-	return;
+	//return;
 #ifdef CLOTHE
 	union key tmp_key;
 	
@@ -95,9 +95,9 @@ static void read_key_from_eeprom(void)
 		upload_spec_key((u8 *)tmp_key.spec_key.key);
 		
 	} else {		
-		int2chars(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
+		//int2chars(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
 		
-		key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
+		//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 		
 		gen_key = tmp_key.gen_key;
 	}
@@ -163,28 +163,35 @@ void key_test(void)
 	key_Reads(0, (u8 *)a, sizeof(a));
 }
 
+void get_wifi_info(char *id, char *passwd)
+{
+	memcpy(id, gen_key.ssid, WIFI_ID_PAWD_LEN);
+	memcpy(passwd, gen_key.passwd, WIFI_ID_PAWD_LEN);
+}
+
 void key_get_sn(char *s)
 {
 	memcpy(s, gen_key.sn, 16);
 }
 
-void key_get_ip_suffix(char *s)
-{
-	memcpy(s, gen_key.ip_suffix, 3);
-}
-
-
 s8 key_get_blod(void)
 {
-	s8 ret = (s8)char2u32(gen_key.blod_def, sizeof(gen_key.blod_def));
-	int2chars(gen_key.blod_def, 0, sizeof(gen_key.blod_def));
+	s8 ret = (s8)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
+	int2chars_16(gen_key.blod_def, 0, sizeof(gen_key.blod_def));
 	
 	return ret;
 }
 
 static s8 _key_get_blod(void)
 {
-	return (s8)char2u32(gen_key.blod_def, sizeof(gen_key.blod_def));
+	s8 ret = (s8)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
+	
+	return ret;
+}
+
+void key_get_ip_suffix(char *s)
+{
+	memcpy(s, gen_key.ip_suffix, 3);
 }
 
 s8 key_get_fresh_status(void)
@@ -196,11 +203,24 @@ s8 key_get_fresh_status(void)
 	return ret;
 }
 
+u32 key_get_host_ip(void)
+{
+	u8 ip[4];
+	int i;
+	u32 *ret;
+	
+	for (i = 0; i < 4; i++)
+		ip[3 - i]= (u8)char2u32_10(gen_key.host_ip[i], 3);
+	
+	ret = (u32 *)ip;
+	
+	return *ret;
+}
 
 void key_init(void)
 {
 	OS_ERR err;
-	
+		
 	GPIO_InitTypeDef GPIO_InitStructure;
 	
  	RCC_APB2PeriphClockCmd(KEY_INT_RCC, ENABLE);
@@ -209,9 +229,19 @@ void key_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; 
  	GPIO_Init(KEY_INT_GPIO, &GPIO_InitStructure);
 	
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; 
+ 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	
+	GPIO_WriteBit(GPIOC, GPIO_Pin_11, Bit_SET);
+#ifdef LCD	
+	display_key();
+#endif	
 	while (1) {
+#if defined(CLOTHE) || defined(GUN)
 		blue_intival();
-		
+#endif		
 		if (key_get_gpio()) {
 			msleep(200);
 			if (!key_get_gpio())
@@ -244,4 +274,3 @@ void key_init(void)
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
             (OS_ERR*)&err);
 }
-

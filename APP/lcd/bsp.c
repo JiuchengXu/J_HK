@@ -394,7 +394,9 @@ void  BSP_Init (void)
 	esp8266_init();
 	i2c_init();
 	SPI3_init();
-	keyboard_init();	
+	keyboard_init();
+	e2prom_onboard_init();	
 	beep_init();
 	download_task_init();
+	adc_init();
 }

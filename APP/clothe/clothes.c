@@ -11,13 +11,15 @@
 
 #ifdef CLOTHE
 
-#define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)1 << 8) | 10)
+//#define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)0 << 8) | 102)
+static u32 HOST_IP;
 
 #define GUN_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 2)
 #define RIFLE_IP	(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 3)
 #define LCD_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 5)
 
 #define HOST_PORT			(u16)5135
+#define HOST_MSG_PORT		(u16)5999
 #define GUN_PORT			(u16)8889
 #define RIFLE_PORT			(u16)8890
 #define LCD_PORT			(u16)8891
@@ -25,6 +27,8 @@
 #define OS_RECV_TASK_STACK_SIZE     256
 #define OS_HB_TASK_STACK_SIZE   	 256
 #define BLOD_MAX					100
+
+#define CLOTHE_RECEIVE_MODULE_NUMBER	8
 
 enum {
 	INIT,
@@ -34,11 +38,13 @@ enum {
 	SUPPLY,
 };
 
-struct attacked_info {
-	char characCode [10][4];
-	char attachTime [10][8];
+struct attacked_info_record {
+	struct attacked_info info;
 	s8 cnt;
 };
+
+static u16 g_characode[CLOTHE_RECEIVE_MODULE_NUMBER];
+static s8 g_head_shoot[CLOTHE_RECEIVE_MODULE_NUMBER];
 
 static CPU_STK  RecvTaskStk[OS_RECV_TASK_STACK_SIZE];
 static OS_TCB RecvTaskStkTCB;
@@ -52,18 +58,24 @@ static s8 actived;
 static volatile u16 blod, bulet;
 static u16 packageID = 0;
 
-static struct attacked_info att_info;
+static struct attacked_info_record att_info;
 
-extern u16 irda_get_shoot_info(void);
+extern int irda_get_shoot_info(u16 *, s8 *);
 extern void key_get_ip_suffix(char *s);
 extern void key_get_sn(char *s);
 extern s8 key_get_blod(void);
 extern s8 key_get_fresh_status(void);
 extern u32 get_time(u8 *, u8 *, u8 *);
+extern void get_wifi_info(char *id, char *passwd);
 
 static s8 sendto_host(char *buf, u16 len)
 {
 	return send_data((u32)HOST_IP, (u16)HOST_PORT, (u16)HOST_PORT, buf, len);
+}
+
+static s8 sendto_host_msg(char *buf, u16 len)
+{
+	return send_data((u32)HOST_IP, (u16)HOST_MSG_PORT, (u16)HOST_MSG_PORT, buf, len);
 }
 
 static s8 sendto_gun(char *buf, u16 len)
@@ -81,21 +93,30 @@ static s8 sendto_lcd(char *buf, u16 len)
 	return send_data(LCD_IP, LCD_PORT, LCD_PORT, buf, len);
 }
 
-static void set_attack_info(u16 charcode, u32 time)
+static void set_attack_info(u16 *charcode, s8 *head_shoot, u32 time)
 {
-	INT2CHAR(att_info.characCode[att_info.cnt], charcode);
-	INT2CHAR(att_info.attachTime[att_info.cnt], time);
+	int i;
 	
-	att_info.cnt++;
-	
-	if (att_info.cnt == 10)
-		att_info.cnt = 0;
+	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER && charcode[i] != 0; i++) {
+		INT2CHAR(att_info.info.characCode[att_info.cnt], charcode[i]);
+		if (head_shoot[i] == 1)
+			INT2CHAR(att_info.info.ifHeadShot[att_info.cnt], 1);
+		else
+			INT2CHAR(att_info.info.ifHeadShot[att_info.cnt], 0);
+		
+		INT2CHAR(att_info.info.attachTime[att_info.cnt], time);
+		
+		att_info.cnt++;
+		
+		if (att_info.cnt == 10)
+			att_info.cnt = 0;
+	}
 }
 
-static void get_attack_info(char *time, char *charcode)
+static void get_attack_info(struct attacked_info *info)
 {
-	memcpy(time, att_info.attachTime, sizeof(att_info.attachTime));
-	memcpy(charcode, att_info.characCode, sizeof(att_info.characCode));
+	if (att_info.cnt > 0)
+		memcpy(info, &att_info.info, sizeof(*info));
 }
 
 static int active_request(void)
@@ -144,13 +165,27 @@ static int upload_status_data(void)
 	INT2CHAR(data.deviceType, 0);
 	INT2CHAR(data.deviceSubType, get_deviceSubType());	
 	INT2CHAR(data.lifeLeft, (int)blod);
-	get_attack_info((char *)data.attachTime, (char *)data.characCode);
+	get_attack_info(&data.atck_info);
 	key_get_sn(data.keySN);
 	INT2CHAR(data.PowerLeft, get_power());
 	
 	upload_lcd(LCD_LIFE, blod);
 	msleep(20);
 	return sendto_host((char *)&data, sizeof(data));
+}
+
+static int upload_ip_info(void)
+{
+	struct sta_ip_change_pkg data;
+	
+	memset(&data, '0', sizeof(data));
+	
+	INT2CHAR(data.transMod, 0);
+	INT2CHAR(data.packTye, IP_CHANGE_TYPE);
+	INT2CHAR(data.packageID, packageID++);
+	key_get_sn(data.KeySN);
+	
+	return sendto_host((char *)&data, sizeof(data));	
 }
 
 static int upload_heartbeat(void)
@@ -186,7 +221,7 @@ static void recv_gun_handler(char *buf, u16 len)
 	struct ActiveRequestData *data = (void *)buf;
 	u32 packTye;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
+	packTye = char2u32_16(data->packTye, sizeof(data->packTye));
 	
 	if (packTye == ACTIVE_REQUEST_TYPE) {
 		struct GunActiveAskData ask_data;
@@ -213,7 +248,7 @@ static void recv_rifle_handler(char *buf, u16 len)
 	struct ActiveRequestData *data = (void *)buf;
 	u32 packTye;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
+	packTye = char2u32_16(data->packTye, sizeof(data->packTye));
 	
 	if (packTye == ACTIVE_REQUEST_TYPE) {
 		struct GunActiveAskData ask_data;
@@ -235,19 +270,30 @@ static void recv_host_handler(char *buf, u16 len)
 	struct MsgPkgResp resp;
 	u32 packType;
 	
-	packType = char2u32(data->packTye, sizeof(data->packTye));
+	packType = char2u32_16(data->packTye, sizeof(data->packTye));
 	if (packType == ACTIVE_RESPONSE_TYPE) {
 		actived = 1;
-		characCode = (u16)char2u32(data->characCode, sizeof(data->characCode));
-		set_time(char2u32(data->curTime, sizeof(data->curTime)));
-	} else if (packType == MESSAGE_TYPE) {
+		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
+		set_time(char2u32_16(data->curTime, sizeof(data->curTime)));
+	} 
+}
+
+static void recv_host_msg_handler(char *buf, u16 len)
+{
+	struct MsgPkg *data = (void *)buf;
+	struct MsgPkgResp resp;
+	u32 packType;
+	
+	packType = char2u32_16(data->packTye, sizeof(data->packTye));
+	
+	if (packType == MESSAGE_TYPE) {
 		memcpy(&resp, data, sizeof(struct MsgPkg));
-		resp.packTye[0] = MESSAGE_RESPONSE_TYPE;
-		resp.rx_ok[0] = '0';
-		sendto_host((char *)&resp, sizeof(resp));
+		INT2CHAR(resp.packTye, MESSAGE_RESPONSE_TYPE);
+		INT2CHAR(resp.rx_ok, 0);
+		sendto_host_msg((char *)&resp, sizeof(resp));
 		msleep(20);
 		sendto_lcd((char *)&resp, sizeof(resp));
-	}
+	}	
 }
 
 static void recv_lcd_handler(char *buf, u16 len)
@@ -255,7 +301,7 @@ static void recv_lcd_handler(char *buf, u16 len)
 	struct ActiveRequestData *data = (void *)buf;
 	u32 packTye;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
+	packTye = char2u32_16(data->packTye, sizeof(data->packTye));
 	
 	if (packTye == ACTIVE_REQUEST_TYPE) {
 		struct LcdActiveAskData ask_data;
@@ -289,6 +335,7 @@ static void recv_task(void)
 	
 	while (1) {
 		recv_data(&ip, &remote_port, recv_buf, &len);
+#if 0
 		switch (ip) {
 			case HOST_IP:
 				recv_host_handler(recv_buf, len);
@@ -306,6 +353,20 @@ static void recv_task(void)
 				sendto_host(recv_buf, len);
 				break;			
 		}
+#endif		
+		if (ip == HOST_IP) {
+			if (remote_port == HOST_MSG_PORT)
+				recv_host_msg_handler(recv_buf, len);
+			else
+				recv_host_handler(recv_buf, len);
+		} else if (ip == LCD_IP)
+			recv_lcd_handler(recv_buf, len);
+		else if (ip == GUN_IP)
+			recv_gun_handler(recv_buf, len);
+		else if (ip == RIFLE_IP)
+			recv_rifle_handler(recv_buf, len);
+		else
+			sendto_host(recv_buf, len);
 	}
 }
 
@@ -354,13 +415,16 @@ static void net_init(void)
 {
 	u8 i;
 	char sid[20] = "CSsub", passwd[20] = "12345678", \
-		host[20] = "1103", host_passwd[20] = "Q!W@E#r4", \
+		host[20], host_passwd[20], \
 	    ip[16] = "192.168.1.";
 	
 	// ip最后一位作为一个标识
 	key_get_ip_suffix(&sid[5]);
 	
 	key_get_ip_suffix(&ip[10]);
+	HOST_IP = key_get_host_ip();
+	
+	get_wifi_info(host, host_passwd);
 	
 	if (set_echo(1) < 0)
 		err_log("set_echo");
@@ -376,17 +440,20 @@ static void net_init(void)
 		
 	if (connect_ap(host, host_passwd, 3) < 0)
 		err_log("connect_ap");
-	
+		
 	if (set_ap(sid, passwd) < 0)
 		err_log("set_ap");
 	
 	if (set_mux(1) < 0)
 		err_log("set_mux");
 	
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 5; i++)
 		udp_close(i);
 	
 	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
+		err_log("");
+	
+	if (udp_setup(HOST_IP, HOST_MSG_PORT, HOST_MSG_PORT) < 0)
 		err_log("");
 	
 	if (udp_setup(GUN_IP, GUN_PORT, GUN_PORT) < 0)
@@ -397,6 +464,8 @@ static void net_init(void)
 	
 	if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
 		err_log("");
+	
+	get_ip();
 }
 
 void upload_spec_key(u8 *key)
@@ -406,7 +475,7 @@ void upload_spec_key(u8 *key)
 	memset(&tmp_key, '0', sizeof(tmp_key));
 	
 	INT2CHAR(tmp_key.transMod, 0);
-	INT2CHAR(tmp_key.packTye, HEART_BEAT_TYPE);
+	INT2CHAR(tmp_key.packTye, SPECIAL_KEY_TYPE);
 	INT2CHAR(tmp_key.packageID, packageID++);
 	key_get_sn(tmp_key.keySN);
 	memcpy(tmp_key.AkeySN, key, sizeof(tmp_key.AkeySN));
@@ -416,7 +485,7 @@ void upload_spec_key(u8 *key)
 
 void main_loop(void)
 {
-	u16 charcode;
+	u32 charcode;
 	u16 blod_bak;
 	
 	key_init();
@@ -426,13 +495,14 @@ void main_loop(void)
 	net_init();
 		
 	start_clothe_tasks();
-	
-	/*
+		
 	while (!actived) {
+	//while (1) {
 		active_request();
 		sleep(1);
+		//upload_ip_info();
+		sleep(1);
 	}
-	*/
 		
 	green_led_on();
 	
@@ -440,13 +510,16 @@ void main_loop(void)
 	
 	upload_status_data();
 	
-	while (1)
-		sleep(1);
+	//watch_dog_feed_task_init();
 	
 	while (1) {						
-		if ((charcode = irda_get_shoot_info()) != 0 && blod > 0) {
-			set_attack_info(charcode, get_time(NULL, NULL, NULL));
-			blod--;
+		if (irda_get_shoot_info(g_characode, g_head_shoot) != 0 && blod > 0) {
+			set_attack_info(g_characode, g_head_shoot, get_time(NULL, NULL, NULL));
+			
+			if (charcode & 0x80000000) //爆头
+				blod = 0;
+			else
+				blod--;
 			
 			if (blod == 0)
 				work_flag_dipatch_gun(STOP_WORK);

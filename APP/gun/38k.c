@@ -31,7 +31,7 @@ void TIM5_PWM_Init(u16 arr,u16 psc)
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2; //选择定时器模式:TIM脉冲宽度调制模式2
  	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable; //比较输出使能
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low; //输出极性:TIM输出比较极性高
-	TIM_OCInitStructure.TIM_Pulse = 21;
+	TIM_OCInitStructure.TIM_Pulse = 12;
 	TIM_OC2Init(TIM5, &TIM_OCInitStructure);  //根据T指定的参数初始化外设TIM1 OC4
 
 	TIM_OC4PreloadConfig(TIM5, TIM_OCPreload_Enable);  //使能TIM1在CCR2上的预装载寄存器
@@ -52,7 +52,7 @@ void led_uart_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);//初始化GPIO
 	
-	USART_InitStructure.USART_BaudRate = 300;
+	USART_InitStructure.USART_BaudRate = 2000;
 	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
 	USART_InitStructure.USART_Parity = USART_Parity_No ;
@@ -88,9 +88,9 @@ void send_charcode(u16 code)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);//初始化GPIO
 	
 	TIM_Cmd(TIM5, ENABLE);
-	uart4_putchar(0xff);
-	uart4_putchar(0xff);
-	uart4_putchar(0x00);
+	//uart4_putchar(0xff);
+	//uart4_putchar(0xff);
+	//uart4_putchar(0x00);
 	uart4_putchar(0x55);
 	uart4_putchar(c1);
 	uart4_putchar(c2);

@@ -294,10 +294,10 @@ ARM Macro Assembler    Page 5
   196 0000002A                 END
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M3 --apcs=interw
 ork --depend=..\..\out\clothe_output\cpu_a.d -o..\..\out\clothe_output\cpu_a.o 
--ID:\…Ò÷€\final\APP\clothe\RTE -IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.1.0 -
-IC:\Keil_v5\ARM\CMSIS\Include --predefine="__MICROLIB SETA 1" --predefine="__UV
-ISION_VERSION SETA 514" --predefine="STM32F10X_HD SETA 1" --list=.\listings\cpu
-_a.lst ..\..\ucos\CPU\cpu_a.asm
+-ID:\ÀΩªÓ\«π\project\final\APP\clothe\RTE -IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_
+DFP\2.1.0 -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__MICROLIB SETA 1" --pred
+efine="__UVISION_VERSION SETA 514" --predefine="STM32F10X_HD SETA 1" --list=.\l
+istings\cpu_a.lst ..\..\ucos\CPU\cpu_a.asm
 
 
 

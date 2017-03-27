@@ -171,6 +171,8 @@ void I2S_Bus_Init(void)
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 	
 	DMA_I2S_Configuration(0, 0xFFFE);
+	
+	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_RESET);
 }
 
 void Audio_MAL_Play(u32 Addr, u32 Size)
@@ -263,7 +265,7 @@ void AUDIO_TransferComplete(void)
 #else
 	XferCplt=1;
 	if (WaveLen == 0) {
-		GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
+		//GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 		return;
 	}
 	
@@ -334,7 +336,7 @@ void wav_pre_read(void)
 	OSSemCreate(&dma_sem, "dma Sem", 0, &err);
 }
 
-void wav_play_up(void)
+void wav_play(void)
 {
 	OS_ERR err;
 
@@ -343,7 +345,7 @@ void wav_play_up(void)
 	
 	file_idx = DataOffset;
 	WaveLen = g_WaveLen;
-	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_RESET);	
+	
 	flash_bytes_read(file_idx, (u8 *)buffer1, BUF_LEN);
 	file_idx += BUF_LEN;
 	flash_bytes_read(file_idx, (u8 *)buffer2, BUF_LEN);
@@ -352,127 +354,7 @@ void wav_play_up(void)
 	buffer_switch = 2;
 		
 	Audio_MAL_Play((u32)buffer1, BUF_LEN);
-
-#if 0	
-	sleep(10);
 	
-	while (WaveLen > 0) {
-		//OSSemPend(&dma_sem, NULL, OS_OPT_PEND_BLOCKING, NULL, &err);
-		if (XferCplt == 0)
-			continue;
-		
-		if (buffer_switch == 2) {
-			flash_bytes_read(file_idx, (u8 *)buffer1, BUF_LEN);
-			file_idx += BUF_LEN;
-			buffer_switch = 1;
-		} else {
-			flash_bytes_read(file_idx, (u8 *)buffer2, BUF_LEN);
-			file_idx += BUF_LEN;
-			buffer_switch = 2;
-		}
-		
-		XferCplt = 0;
-	}
-#endif	
-}
-
-void wav_play_down(void)
-{
-	u32 index = 0;
-	OS_ERR err;
-	
-	XferCplt = 0;
-	buffer_switch = 1;
-	
-	index = DataOffset + g_WaveLen / 4;
-	WaveLen = g_WaveLen - g_WaveLen / 4;
-	
-	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_RESET);
-		
-	flash_bytes_read(index, (u8 *)buffer1, 1024);
-	index += 1024;
-	buffer_switch = 2;
-	
-	Audio_MAL_Play((u32)buffer1, 1024);
-	
-	while (WaveLen > 0) {		
-		if (buffer_switch == 2) {
-			flash_bytes_read(index, (u8 *)buffer2, 1024);
-			index += 1024;
-			OSSemPend(&dma_sem, NULL, OS_OPT_PEND_BLOCKING, NULL, &err);
-			buffer_switch = 1;
-		} else {
-			flash_bytes_read(index, (u8 *)buffer1, 1024);
-			index += 1024;
-			OSSemPend(&dma_sem, NULL, OS_OPT_PEND_BLOCKING, NULL, &err);
-			buffer_switch = 2;
-		}
-		
-		
-	}	
-}
-
-void wav_play(void)
-{
-	u32 index = 0;
-	OS_ERR err;
-	
-	XferCplt = 0;
-	buffer_switch = 1;
-	
-	index = DataOffset;
-	WaveLen = g_WaveLen;
-	
-	//increase_voice();
-	
-#if 0	
-	flash_bytes_read(index, (u8 *)buffer1, 1024);
-	index += 1024;
-	flash_bytes_read(index, (u8 *)buffer2, 1024);
-	
-  	Audio_MAL_Play((u32)buffer1, 1024);
-
-  	buffer_switch=1;
-  	XferCplt=0;  
-  	while (WaveLen != 0) { 
-	      	while (XferCplt == 0)//??DMA????
-				OSSemPend(&dma_sem, NULL, OS_OPT_PEND_BLOCKING, NULL, &err);
-			
-	      	XferCplt=0;
-	      	if (buffer_switch==0) {
-		        	Audio_MAL_Play((u32)buffer1, 1024);//?buffer1??
-					index += 1024;
-		        	flash_bytes_read(index, (u8 *)buffer2, 1024);
-		        	buffer_switch=1;
-	      	} else {   
-		        	Audio_MAL_Play((u32)buffer2, 1024);//?buffer2??
-					index += 1024;
-		        	flash_bytes_read(index, (u8 *)buffer1, 1024);
-		        	buffer_switch = 0;
-	      	} 
-		i++;
-  	}
-#else
-	flash_bytes_read(index, (u8 *)buffer1, 1024);
-	index += 1024;
-	buffer_switch = 0;
-	
-	Audio_MAL_Play((u32)buffer1, 1024);
-	
-	while (WaveLen > 0) {
-		if (buffer_switch == 0) {
-			flash_bytes_read(index, (u8 *)buffer2, 1024);
-			index += 1024;
-			buffer_switch = 1;
-		} else {
-			flash_bytes_read(index, (u8 *)buffer1, 1024);
-			index += 1024;
-			buffer_switch = 0;
-		}
-		
-		OSSemPend(&dma_sem, NULL, OS_OPT_PEND_BLOCKING, NULL, &err);
-	}
-	
-#endif
+	msleep(200);
 }
 #endif

@@ -119,27 +119,17 @@ s8 get_mode(void)
 
 s8 trigger_get_status(void)
 {
-#if 0
-	static int s = 0;
-	
-	if (s++ == 20) {
-		s = 0;
-		return 1;
-	}
-	
-	return 0;
-#else
 	static int status = 0;	
 	int ret = (GPIO_ReadInputDataBit(GUN_TRIGER_GPIO, GUN_TRIGER_GPIO_PIN) == Bit_RESET);
 	int mode;
 	
-	msleep(10);
+	msleep(2);
 	
 	ret = ret && (GPIO_ReadInputDataBit(GUN_TRIGER_GPIO, GUN_TRIGER_GPIO_PIN) == Bit_RESET);
 	
 	mode = get_mode();
 	
-	mode = GUN_MODE_SINGLE;
+	//mode = GUN_MODE_SINGLE;
 	
 	if (mode == GUN_MODE_SINGLE) {
 		if (status == 0) {		
@@ -157,8 +147,6 @@ s8 trigger_get_status(void)
 	} 
 	
 	return 0;
-	
-	#endif
 }
 
 s8 trigger_handle(u16 charcode)
@@ -170,7 +158,7 @@ s8 trigger_handle(u16 charcode)
 
 		send_charcode(charcode);
 		
-		wav_play_up();
+		wav_play();
 
 		startup_motor();
 		

@@ -10,9 +10,15 @@
 extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
 #define ITERM_TASK_STACK_SIZE		1024
+#define FONT_BASE_ADDR		(U32)(3 * 0x100000)
+
 static OS_TCB iterm_task_tcb;
 static CPU_STK iterm_task_stk[ITERM_TASK_STACK_SIZE];
 static PROGBAR_Handle ahProgBar[2];
+
+GUI_FONT     XBFFont;
+GUI_XBF_DATA XBF_Data;
+
 
 /*********************************************************************
 *
@@ -381,12 +387,14 @@ void clock_show(void)
 {
 	char time[10];
 	u8 hour, min, sec;
+	int ret;
 
 	memset(time, 0 , sizeof(time));
 	
 	//GUI_SetBkColor(GUI_TRANSPARENT);
 	
-	get_time(&hour, &min, &sec);
+	if (get_time(&hour, &min, &sec) == 0)
+		return;
 	
 	sprintf(time, "%02d:%02d:%02d", hour, min, sec);
 	
@@ -410,7 +418,7 @@ void upiterm_show(void)
 	GUI_SetColor(GUI_BLACK);	
 	GUI_FillRect(0, 0, 479, 20);
 
-	battery_show(20);
+	battery_show(get_power());
 
 	clock_show();
 	
@@ -522,3 +530,52 @@ void pic_preload(void)
 	GUI_BMP_DrawEx(spi_flash_get_bg, NULL, 0, 0);
 }
 
+int _cbGetData16(U32 Off, U16 NumBytes, void * pVoid, void * pBuffer)
+{
+	flash_bytes_read(FONT_BASE_ADDR + Off, pBuffer, NumBytes);
+	
+	return 0;
+}
+
+void XBF_font_init(void)
+{
+	int ret = GUI_XBF_CreateFont(&XBFFont, 
+						&XBF_Data, 
+						GUI_XBF_TYPE_PROP, 
+						_cbGetData16, 
+						NULL); 
+	if (ret != 0)
+		ret = ret;
+}
+
+void display_hanzi(char *src, int x, int y)
+{
+	GUI_SetColor(GUI_WHITE);
+	
+	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
+	
+	GUI_UC_SetEncodeUTF8();
+	
+	GUI_SetFont(&XBFFont);
+	
+	GUI_DispStringAt(src, x, y);
+}
+
+void display_en(char *src, int x, int y)
+{
+	GUI_SetColor(GUI_WHITE);
+	
+	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
+
+	GUI_SetFont(GUI_FONT_8X16);
+	
+	GUI_DispStringAt(src, x, y);	
+}
+
+void display_key(void)
+{
+	char msg[] = "\请插入\\";
+	
+	display_hanzi(msg, 100, 100);
+	display_en("key", 170, 100);
+}

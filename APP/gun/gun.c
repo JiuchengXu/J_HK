@@ -37,7 +37,7 @@ static CPU_STK  HBTaskStk[OS_HB_TASK_STACK_SIZE];
 static OS_TCB HBTaskStkTCB;
 
 static char recv_buf[1024];                                                    
-static u16 characCode;
+static u16 characCode = 0x1122;
 static s8 actived;
 static u16 packageID = 0;
 	
@@ -50,7 +50,6 @@ extern void key_get_ip_suffix(char *s);
 extern void key_get_sn(char *s);
 extern s8 key_get_fresh_status(void);
 extern s8 key_get_blod(void);
-
 
 static s8 sendto_host(char *buf, u16 len)
 {
@@ -149,10 +148,10 @@ static void recv_host_handler(char *buf, u16 len)
 	struct ActiveAskData *data = (void *)buf;
 	u32 packTye;
 	
-	packTye = char2u32(data->packTye, sizeof(data->packTye));
+	packTye = char2u32_16(data->packTye, sizeof(data->packTye));
 	
 	if (packTye == ACTIVE_RESPONSE_TYPE) {
-		characCode = (u16)char2u32(data->characCode, sizeof(data->characCode));
+		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
 		actived = 1;
 	} else if (packTye == START_WORK)
 		actived = 1;
@@ -320,11 +319,11 @@ void main_loop(void)
 	s8 bulet_used_nr;
 	s8 i;
 	
-	blue_led_on();
+	blue_led_on();	
 	
+#if 0
 	key_init();
 	
-#if 1	
 	net_init();
 					
 	start_gun_tasks();
@@ -337,11 +336,14 @@ void main_loop(void)
 		msleep(500);
 	}
 #endif	
+	
 	set_buletLeft(100);
 	
-	upload_status_data();
+	//upload_status_data();
 	
 	green_led_on();
+	
+	//watch_dog_feed_task_init();
 	
 	while (1) {
 		if (key_get_fresh_status())
@@ -353,7 +355,7 @@ void main_loop(void)
 			for (i = 0; i < bulet_used_nr; i++)
 				reduce_bulet();
 			
-			upload_status_data();
+			//upload_status_data();
 		}
 		
 		msleep(100);

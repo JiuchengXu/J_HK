@@ -430,11 +430,6 @@
               <FilePath>.\includes.h</FilePath>
             </File>
             <File>
-              <FileName>blod.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\blod.c</FilePath>
-            </File>
-            <File>
               <FileName>IrDA.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\IrDA.c</FilePath>

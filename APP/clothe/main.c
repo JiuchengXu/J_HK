@@ -23,7 +23,6 @@ static void  AppTaskStart (void *p_arg)
 	main_loop();
 }
 
-
 int main(void)
 {	
     OS_ERR  err;
