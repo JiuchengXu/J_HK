@@ -406,16 +406,14 @@ void clock_show(void)
 void upiterm_show(void)
 {
 	static GUI_MEMDEV_Handle iterm_hmem = 0;
-	static int f = 0;
 	
 	if (iterm_hmem == 0) 
 		iterm_hmem = GUI_MEMDEV_Create(0, 0, 480, 20);
 	
-	f = 0;
-	
 	GUI_MEMDEV_Select(iterm_hmem);
 	
-	GUI_SetColor(GUI_BLACK);	
+	GUI_SetColor(GUI_BLACK);
+	
 	GUI_FillRect(0, 0, 479, 20);
 
 	battery_show(get_power());
@@ -502,7 +500,7 @@ static void update_iterm_task(void)
 void pic_preload(void)
 {
 	OS_ERR err;
-		
+#if 1		
     OSTaskCreate((OS_TCB *)&iterm_task_tcb, 
             (CPU_CHAR *)"net reciv task", 
             (OS_TASK_PTR)update_iterm_task, 
@@ -516,14 +514,12 @@ void pic_preload(void)
             (void *)0,
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
             (OS_ERR*)&err);	
-		
+#endif		
 	if (home1_hmem == 0)
 		home1_hmem = GUI_MEMDEV_Create(0, 0, 480, 320);
 
 	if (bg_hmem == 0)
 		bg_hmem = GUI_MEMDEV_Create(0, 0, 480, 320);
-	
-	flash_bytes_read(0, (u8 *)&img_section, sizeof(img_section));
 	
 	GUI_MEMDEV_Select(bg_hmem);	
 		
@@ -544,8 +540,14 @@ void XBF_font_init(void)
 						GUI_XBF_TYPE_PROP, 
 						_cbGetData16, 
 						NULL); 
-	if (ret != 0)
-		ret = ret;
+	if (ret != 0) {
+		GUI_Clear();
+		
+		GUI_DispStringAt("Please downlaod font file", 10, 200);
+		
+		while (1)
+			sleep(1);
+	}
 }
 
 void display_hanzi(char *src, int x, int y)
@@ -577,5 +579,20 @@ void display_key(void)
 	char msg[] = "\请插入\\";
 	
 	display_hanzi(msg, 100, 100);
-	display_en("key", 170, 100);
+	display_en("key...", 170, 101);
+}
+
+void read_spi_flash_header(void)
+{
+	flash_bytes_read(0, (u8 *)&img_section, sizeof(img_section));
+	
+	if (img_section.pic_num >= 1 && img_section.pic_num <= 64)
+		return;
+	
+	GUI_Clear();
+	
+	display_en("Please download Image file", 10, 100);
+	
+	while (1)
+		sleep(1);
 }

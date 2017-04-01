@@ -58,7 +58,7 @@ extern void key_get_ip_suffix(char *s);
 extern void pic_preload(void);
 extern void show_background(void);
 extern void show_home(void);
-extern void upiterm_show(int);
+extern void upiterm_show(void);
 extern void ProgBarShow(int);
 
 static s8 sendto_host(char *buf, u16 len)
@@ -232,8 +232,7 @@ static void net_init(void)
 	
 	if (set_mode(1) < 0)
 		err_log("set_mode");
-		
-	
+			
 	if (connect_ap(host, host_passwd, 3) < 0)
 		err_log("connect_ap");
 	
@@ -304,21 +303,23 @@ void main_loop(void)
 	
 	GUI_Clear();
 	
-	XBF_font_init();
-		
-	GUI_Delay(100);
-	
-	pic_preload();
-	
-	show_background();
-		
 	backlight_on();
 	
+	read_spi_flash_header();
+	
+	XBF_font_init();
+		
+	GUI_Delay(100);	
+	
+	display_key();	
+	
+	pic_preload();
+		
+	key_init();
+			
 	GUI_Delay(100);
 	
 	ProgBarInit();
-				
-	key_init();
 	
 	show_background();
 	
@@ -343,6 +344,8 @@ void main_loop(void)
 	show_home();
 	
 	ok_notice();
+	
+	//battery_show(get_power());
 	
 	//watch_dog_feed_task_init();
 			
@@ -395,9 +398,9 @@ void main_loop(void)
 				break;
 		}
 		
-		//upiterm_show(100);
-		
 		msleep(100);
+		
+		
 	}
 #endif
 }

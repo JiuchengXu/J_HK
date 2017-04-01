@@ -487,7 +487,8 @@ void main_loop(void)
 {
 	u32 charcode;
 	u16 blod_bak;
-	
+
+#if 1	
 	key_init();
 		
 	blod_bak = blod = key_get_blod();
@@ -497,13 +498,10 @@ void main_loop(void)
 	start_clothe_tasks();
 		
 	while (!actived) {
-	//while (1) {
 		active_request();
-		sleep(1);
-		//upload_ip_info();
-		sleep(1);
+		sleep(2);
 	}
-		
+#endif		
 	green_led_on();
 	
 	ok_notice();	
@@ -516,7 +514,7 @@ void main_loop(void)
 		if (irda_get_shoot_info(g_characode, g_head_shoot) != 0 && blod > 0) {
 			set_attack_info(g_characode, g_head_shoot, get_time(NULL, NULL, NULL));
 			
-			if (charcode & 0x80000000) //±¬Í·
+			if (charcode & 0x80000000)
 				blod = 0;
 			else
 				blod--;
@@ -524,7 +522,7 @@ void main_loop(void)
 			if (blod == 0)
 				work_flag_dipatch_gun(STOP_WORK);
 		}
-		
+#if 1		
 		if (key_get_fresh_status()) {
 			if (blod == 0)
 				work_flag_dipatch_gun(START_WORK);
@@ -536,7 +534,7 @@ void main_loop(void)
 			upload_status_data();
 		
 		blod_bak = blod;
-		
+#endif		
 		msleep(100);
 	}	
 }

@@ -6,6 +6,7 @@
 #include "mutex.h"
 
 static struct mutex_lock lcd_lock;
+static OS_TMR timer;
 
 void LCD_FSMC_Config(void)
 {
@@ -109,8 +110,9 @@ void lcd_display_bitmap(int x, int y, const u16 * p, int xsize, int ysize)
 	int Ystart = y;
 	int Yend = y + ysize-1;
 	int i, j;
+	OS_ERR err;
 
-	mutex_lock(&lcd_lock);
+	//OSSchedLock(&err);
 	BlockWrite(Xstart, Xend, Ystart, Yend);
 	
 	for (j = 0; j < ysize; j++)
@@ -119,15 +121,40 @@ void lcd_display_bitmap(int x, int y, const u16 * p, int xsize, int ysize)
 			//delay_us(1);
 		}
 		
-	mutex_unlock(&lcd_lock);	
+	OSSchedUnlock(&err);	
 }
 
 int init_flag = 0;
+
+void backlight_on(void)
+{
+	Lcd_Light_ON;
+}
+
+void backlight_off(void)
+{
+	Lcd_Light_OFF;
+}
+
+int lcd_trunoff_backlight_countdown(void)
+{
+	OS_ERR err;
+	
+	backlight_on();
+	
+	OSTmrStart(&timer, &err);
+	
+	if (err == OS_ERR_NONE)
+		return 0;
+	
+	return -1;
+}
  
 void TFTLCD_Init(void)
 {
 	u16 id[3];
 	u16 dummy;
+	OS_ERR err;
 	
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_CRC,ENABLE);//使能CRC时钟，否则STemWin不能使用
 	
@@ -150,119 +177,7 @@ void TFTLCD_Init(void)
 		
 	WriteComm(0x01);
 	msleep(200);
-#if 0
-	
-	WriteComm(0x00B3);
-	WriteData( 0x0000);//WriteData( 0x0002);
-	WriteData( 0x0000);
-	WriteData(0x0000);
-	WriteData(0x0000);
-	//WriteData(0x0000);
 
-	WriteComm(0x00B4);
-	WriteData(0x0000);
-
-	WriteComm(0x00C0);
-	WriteData(0x0013);//
-	WriteData( 0x003B);//480
-	WriteData( 0x0000);
-	WriteData( 0x0003);//02
-	WriteData( 0x0000);
-	WriteData( 0x0001);
-	WriteData( 0x0000);
-	WriteData( 0x0043);
-
-	WriteComm( 0x00C1);
-	WriteData( 0x0008);
-	WriteData( 0x0012);//CLOCK
-	WriteData( 0x0008);
-	WriteData( 0x0008);
-
-	WriteComm( 0x00C4);
-	WriteData( 0x0011);
-	WriteData( 0x0007);
-	WriteData( 0x0003);
-	WriteData( 0x0003);
-
-	WriteComm( 0x00C8);//GAMMA
-	WriteData( 0x0004);
-	WriteData( 0x0009);
-	WriteData( 0x0016);
-	WriteData( 0x005A);
-	WriteData( 0x0002);
-	WriteData( 0x000A);
-	WriteData( 0x0016);
-	WriteData( 0x0005);
-	WriteData( 0x0000);
-	WriteData( 0x0032);
-	WriteData( 0x0005);
-	WriteData( 0x0016);
-	WriteData( 0x000A);
-	WriteData( 0x0053);//43/55
-	WriteData( 0x0008);
-	WriteData( 0x0016);
-	WriteData( 0x0009);
-	WriteData( 0x0004);
-	WriteData( 0x0032);
-	WriteData( 0x0000);
-
-	WriteComm( 0x002A);
-	WriteData( 0x0000);
-	WriteData( 0x0000);
-	WriteData( 0x0001);
-	WriteData( 0x003F);//320
-
-	WriteComm( 0x002B);
-	WriteData( 0x0000);
-	WriteData( 0x0000);
-	WriteData( 0x0001);
-	WriteData( 0x00DF);//480
-
-	WriteComm( 0x0035);
-	WriteData( 0x0000);
-
-	WriteComm( 0x003A);
-	WriteData( 0x0055);
-
-	WriteComm( 0x0044);
-	WriteData( 0x0000);
-	WriteData( 0x0001);
-
-	//WriteComm( 0x002C);
-	WriteComm( 0x0011);
-
-	Delay(150);
-
-	WriteComm( 0x00D0);
-	WriteData( 0x0007);
-	WriteData( 0x0007);
-	WriteData( 0x001E);
-	WriteData( 0x0703);
-
-	WriteComm( 0x00D1);
-	WriteData( 0x0003);
-	WriteData( 0x0052);//VCM
-	WriteData( 0x0010);//VDV
-
-	WriteComm( 0x00D2);
-	WriteData( 0x0003);
-	WriteData( 0x0024);
-
-	WriteComm(0x00B0);//{setc, [107], W, 0x000B0}
-	WriteData(0x0000);//{setp, [104], W, 0x00000}
-
-	WriteComm(0x0029);
-	
-	WriteComm(0x36); //Set_address_mode
-	//WriteData(0xC8); //竖屏，从左上角开始，从左到右，从上到下
-	WriteData(0xe8);
-	
-	sleep(2);
-	
-	Lcd_Light_ON;
-	
-	return;
-#else
 #define writecommand WriteComm
 #define writedata	WriteData
 #define delay		Delay
@@ -362,11 +277,8 @@ void TFTLCD_Init(void)
     //writecommand(0x21); //Display inversion on
 	
 	mutex_init(&lcd_lock);
-#endif
+	
+	OSTmrCreate(&timer, "LCD backlight", 100, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
+	
+	lcd_trunoff_backlight_countdown();
 } 
-
-
-void backlight_on(void)
-{
-	Lcd_Light_ON;
-}

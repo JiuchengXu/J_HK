@@ -27,6 +27,7 @@ int main(void)
 #if 1	
     OS_ERR  err;
 
+	NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x3000);
 
     /* Disable all interrupts.                              */
 

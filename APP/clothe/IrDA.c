@@ -19,6 +19,7 @@
 #define RECV_MOD_SA_BASE			0x10
 #define CLOTHE_RECEIVE_MODULE_NUMBER	8
 #define IRDA_I2C			I2C1
+static u8 tmp_led[CLOTHE_RECEIVE_MODULE_NUMBER];
 
 struct  recv_info {
 	u16 charcode;
@@ -134,6 +135,28 @@ void IrDA_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *WriteData, u16 Writ
 }
 #endif
 	
+int IrDA_cmd(int cmd, int id, u8 *buf, int len)
+{
+	if (IrDA_Reads((RECV_MOD_SA_BASE + id) << 1, cmd, buf, len) != 0)
+		return -1;
+	
+	return 0;
+}
+
+int IrDA_led(int id, int color)
+{
+	if (recv_offline_map & (1 << id))
+		return -1;
+	u8 ret;
+	struct recv_info status;
+	
+	ret = IrDA_Reads((RECV_MOD_SA_BASE + id) << 1, I2C_OP_CODE_SET_LEDS | color, (u8 *)&status, 3);
+	
+	return ret;
+}
+
+void IrDA_test(void);
+
 int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 {
 	u8 status;
@@ -158,8 +181,9 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 			switch (status) {
 				case 0:
 					charcode[i] = info.charcode;
+					IrDA_led(i, 0xf5);
 					if (i >= 5)
-						head_shoot[i] = 1;//±¬Í·
+						head_shoot[i] = 1;//Ñ¬Í·
 					else
 						head_shoot[i] = 0;
 					
@@ -180,23 +204,6 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 	return ret;
 }
 
-int IrDA_cmd(int cmd, int id, u8 *buf, int len)
-{
-	if (IrDA_Reads((RECV_MOD_SA_BASE + id) << 1, cmd, buf, len) != 0)
-		return -1;
-	else if (IrDA_Writes((RECV_MOD_SA_BASE + id) << 1, cmd, buf, len) != 0)
-	
-	return 0;
-}
-
-int IrDA_led(int id, int color)
-{
-	if (recv_offline_map & (1 << id))
-		return -1;
-	
-	return IrDA_Writes((RECV_MOD_SA_BASE + id) << 1, I2C_OP_CODE_SET_LEDS | color, NULL, 0);
-}
-
 void IrDA_init(void)
 {
 	int i;
@@ -208,10 +215,62 @@ void IrDA_init(void)
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++) {		
 		if (IrDA_Reads((RECV_MOD_SA_BASE + i) << 1, I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) != 0) {
 			recv_offline_map |= 1 << i;
-		} else
-			if (IrDA_led(i, I2C_OP_CODE_SET_RED) != 0)
+		} else if (IrDA_led(i, I2C_OP_CODE_SET_RED) != 0)
+			printf("err\n");
+	}
+	
+	sleep(1);
+	
+	for (i = 0; i < 8; i++) {			
+		IrDA_led(i, 0x00);
+	}
+}
+
+void IrDA_test(void)
+{
+	int i;
+	struct recv_info info;
+	int ret;
+
+	restart:	
+	for (i = 0; i < 8; i++) {
+		if (IrDA_led(i, 0xf0) != 0)
+				printf("err\n");
+		
+		//sleep(1);
+#if 0		
+		if (IrDA_led(i, I2C_OP_CODE_SET_GREEN) != 0)
+				printf("err\n");
+		
+		sleep(1);
+		
+		if (IrDA_led(i, I2C_OP_CODE_SET_YELLOW) != 0)
+				printf("err\n");
+		
+		sleep(1);
+		
+		if (IrDA_led(i, I2C_OP_CODE_SET_BLUE) != 0)
+				printf("err\n");
+		
+		sleep(1);
+		
+		if (i == 7)
+			i = 0;
+#endif		
+	}
+	
+	sleep(1);
+	
+	for (i = 0; i < 8; i++) {
+		if (IrDA_led(i, 0x00) != 0)
 				printf("err\n");
 	}
+	
+	sleep(1);
+	
+	goto restart;
+	
+	while (1);
 }
 
 #endif

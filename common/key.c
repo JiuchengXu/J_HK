@@ -67,7 +67,8 @@ static struct eeprom_special_key spec_key;
 static volatile s8 key_fresh_status;
 
 //char eeprom[] = "SN145784541458900000015332453213252064064";//假衣服
-static char eeprom[] = "s0000000000000010000015332457447253064064"; //真衣服
+static char eeprom[] = "s00000000000000100000153324574472530640641921680011041103\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0Q!W@E#r4\0\0\0\0\0\0\0\0\0\0\0\0"; //真衣服
+
 //char eeprom[] = "SN145784541458880000015332453215252064064";
 
 static void key_Reads(u8 Address, u8 *ReadBuffer, u16 ReadNumber)
@@ -77,15 +78,22 @@ static void key_Reads(u8 Address, u8 *ReadBuffer, u16 ReadNumber)
 
 static void key_Writes(u8 Address, u8 *WriteData, u16 WriteNumber)
 {
-
 	e2prom_WriteBytes(I2C, AT24Cx_Address, Address, WriteData, WriteNumber, AT24Cx_PageSize);
 }
 
 static void read_key_from_eeprom(void)
 {
 	//memcpy(&gen_key, eeprom, sizeof(eeprom));
+	//char *a = eeprom;
+	
+	//gen_key = *(struct eeprom_key_info *)a;
+	
+	
+	
+	//key_Writes(0, (u8 *)&gen_key, sizeof(gen_key));
 	
 	//return;
+
 #ifdef CLOTHE
 	union key tmp_key;
 	
@@ -109,6 +117,8 @@ static void read_key_from_eeprom(void)
 #endif
 	
 #ifdef LCD
+	lcd_trunoff_backlight_countdown();
+
 	key_Reads(0, (u8 *)&gen_key, sizeof(gen_key));
 #endif
 }
@@ -134,8 +144,9 @@ static void key_state_machine_task(void)
 				break;
 				
 			case KEY_INSERTING:
-				if (key_insert_flag)
+				if (key_insert_flag) {
 					status = KEY_INSERTED;
+				}
 				break;
 				
 			case KEY_INSERTED:
@@ -235,9 +246,7 @@ void key_init(void)
  	GPIO_Init(GPIOC, &GPIO_InitStructure);
 	
 	GPIO_WriteBit(GPIOC, GPIO_Pin_11, Bit_SET);
-#ifdef LCD	
-	display_key();
-#endif	
+
 	while (1) {
 #if defined(CLOTHE) || defined(GUN)
 		blue_intival();

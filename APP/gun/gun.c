@@ -321,7 +321,7 @@ void main_loop(void)
 	
 	blue_led_on();	
 	
-#if 0
+#if 1
 	key_init();
 	
 	net_init();
@@ -330,24 +330,23 @@ void main_loop(void)
 	
 	while (!actived) {
 		active_request();
-		led_off();
-		msleep(500);
-		blue_led_on();
-		msleep(500);
+		sleep(2);
 	}
 #endif	
 	
 	set_buletLeft(100);
 	
-	//upload_status_data();
+	upload_status_data();
 	
 	green_led_on();
 	
 	//watch_dog_feed_task_init();
 	
 	while (1) {
+		#if 0
 		if (key_get_fresh_status())
 			key_insert_handle();
+		#endif
 		
 		bulet_used_nr = trigger_handle(characCode);
 		
@@ -355,7 +354,7 @@ void main_loop(void)
 			for (i = 0; i < bulet_used_nr; i++)
 				reduce_bulet();
 			
-			//upload_status_data();
+			upload_status_data();
 		}
 		
 		msleep(100);

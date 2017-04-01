@@ -238,8 +238,8 @@ u8 WaveParsing(void)
 	if(temp!=DATA_ID)return 8;
 	
 	WAVE_Format.DataSize=ReadUnit((u8*)buffer1,DataOffset,4,LittleEndian);//???????
+	
 	DataOffset+=4;
-	WaveCounter=DataOffset;
 	
 	return 0;
 }
@@ -339,6 +339,17 @@ void wav_pre_read(void)
 void wav_play(void)
 {
 	OS_ERR err;
+	u32 index = 0;
+	
+	flash_bytes_read(index, (u8 *)buffer1, 0x100);
+	
+	while(WaveParsing())
+		;
+	
+  	g_WaveLen = WaveLen = WAVE_Format.DataSize;
+	
+  	I2S_Freq_Config(WAVE_Format.SampleRate);
+	
 
 	XferCplt = 0;
 	buffer_switch = 1;

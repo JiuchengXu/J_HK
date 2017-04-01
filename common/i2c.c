@@ -48,9 +48,12 @@ void fix_I2C_busy(I2C_TypeDef *I2C)
 {
 	GPIO_TypeDef* GPIO;
 	u16 scl_pin,sda_pin;
+	int times = 100;
 	
 	GPIO_InitTypeDef GPIO_InitStructure;
 	I2C_InitTypeDef I2C_InitStructure;
+	
+	I2C_Cmd(I2C, DISABLE);
 	
 	if (I2C == I2C2) {
 		GPIO = I2C2_GPIO;
@@ -68,7 +71,7 @@ void fix_I2C_busy(I2C_TypeDef *I2C)
 	
 	GPIO_Init(GPIO, &GPIO_InitStructure);
 	
-	while (GPIO_ReadInputDataBit(GPIO, sda_pin) != Bit_SET) {
+	while (GPIO_ReadInputDataBit(GPIO, sda_pin) != Bit_SET && --times) {
 		GPIO_WriteBit(GPIO, scl_pin, Bit_RESET);
 		udelay(10);
 		GPIO_WriteBit(GPIO, scl_pin, Bit_SET);
@@ -118,17 +121,23 @@ int i2c_opt(I2C_TypeDef *I2C, u8 Op, u8 slave_addr, u8 Address, u8 *Buf, u16 Len
 		i2c_buf->buf = Buf;
 		i2c_buf->len = Len;
 		
-		I2C_ITConfig(I2C, I2C_IT_EVT, ENABLE);
-		I2C_ITConfig(I2C, I2C_IT_BUF, ENABLE);
-		
 		timeout = 72000 / 3;
 		while(I2C_GetFlagStatus(I2C, I2C_FLAG_BUSY) && --timeout);
 		if (timeout == 0) 
 			fix_I2C_busy(I2C);
+		
+		I2C_ITConfig(I2C, I2C_IT_EVT | I2C_IT_BUF, ENABLE);
+		//I2C_ITConfig(I2C, I2C_IT_BUF, ENABLE);
 					
 		I2C_GenerateSTART(I2C, ENABLE);
 					
 		OSSemPend(&i2c_buf->sem, 100, OS_OPT_PEND_BLOCKING, NULL, &err);
+		
+		if (err != OS_ERR_NONE) {
+			I2C_GenerateSTOP(I2C, ENABLE);
+			I2C_ITConfig(I2C, I2C_IT_BUF | I2C_IT_EVT, DISABLE);
+		}
+			
 		
 	} while (err != OS_ERR_NONE && --retry);
 	
@@ -158,6 +167,8 @@ void i2c_isr_test(void)
 	memset(cc, 0, 10);
 	
 	i2c_Reads(I2C1, 0xa6, 0, cc, 8);
+	
+	while (1);
 }
 
 void I2C1_EV_IRQHandler(void)
@@ -398,4 +409,6 @@ void i2c_init(void)
 	if (I2C_GetFlagStatus(I2C2, I2C_FLAG_BUSY))
 		fix_I2C_busy(I2C2);
 #endif
+	
+	//i2c_isr_test();
 }

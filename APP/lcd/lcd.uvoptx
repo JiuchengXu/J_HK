@@ -590,7 +590,7 @@
 
   <Group>
     <GroupName>stmlib</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -936,7 +936,7 @@
 
   <Group>
     <GroupName>ucos</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -1398,8 +1398,8 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>.\gui\Lib\STemWin526_CM3_Keil.lib</PathWithFileName>
-      <FilenameWithoutPath>STemWin526_CM3_Keil.lib</FilenameWithoutPath>
+      <PathWithFileName>.\gui\Lib\STemWin526_CM3_OS_Keil.lib</PathWithFileName>
+      <FilenameWithoutPath>STemWin526_CM3_OS_Keil.lib</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

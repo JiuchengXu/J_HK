@@ -574,8 +574,8 @@ static void _DrawBitmap(GUI_DEVICE * pDevice, int x0, int y0,
   //
   case 16:
 	  
-	lcd_display_bitmap(x0, y0, (const U16 *)pData, xSize, ySize);
-	break;
+	//lcd_display_bitmap(x0, y0, (const U16 *)pData, xSize, ySize);
+	//break;
   
     for (i = 0; i < ySize; i++) {
       _DrawBitLine16BPP(pDevice, x0, i + y0, (const U16 *)pData, xSize);

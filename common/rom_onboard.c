@@ -55,7 +55,6 @@ static u8 eeprom[] = "SN145784541458890000015332453214253064064", test_eeprom[10
 void e2prom_test(void)
 {
 	e2prom_onboard_Reads(0, test_eeprom, sizeof(eeprom));
-	//IrDA_Reads(I2C1, 0XA0, 0, test_eeprom, sizeof(eeprom));
 	
 	memset(test_eeprom, 0, 100);
 	

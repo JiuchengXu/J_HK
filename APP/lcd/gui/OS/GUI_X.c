@@ -101,6 +101,11 @@ static OS_SEM DispSem, EventSem;
 
 void GUI_X_Init(void) 
 {
+
+}
+
+void GUI_X_InitOS(void) 
+{
 	OS_ERR err;
 	
 	OSSemCreate((OS_SEM *)&DispSem,
@@ -112,6 +117,12 @@ void GUI_X_Init(void)
 				(CPU_CHAR *) "Disp_SEM",
 				(OS_SEM_CTR)1,
 				(OS_ERR *)&err);
+}
+
+unsigned long GUI_X_GetTaskId(void)
+{
+	
+	return 0;
 }
 
 void GUI_X_Lock(void)

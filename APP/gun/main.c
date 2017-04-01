@@ -1,5 +1,6 @@
 #include "includes.h"
 #include "bsp.h"
+#include "misc.h"
 
 static  OS_TCB   AppTaskStartTCB; 
 static  CPU_STK  AppTaskStartStk[APP_TASK_START_STK_SIZE];
@@ -12,8 +13,6 @@ static void  AppTaskStart (void *p_arg)
     CPU_INT32U  cnts;
 
    (void)p_arg;
-
-
 
     cpu_clk_freq = BSP_CPU_ClkFreq();                             /* Determine SysTick reference freq.                */                                                                        
     cnts         = cpu_clk_freq / (CPU_INT32U)OSCfg_TickRate_Hz;  /* Determine nbr SysTick increments                 */
@@ -28,7 +27,10 @@ static void  AppTaskStart (void *p_arg)
 int main(void)
 {	
     OS_ERR  err;
-
+	
+	//while (1);
+	
+	NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x3000);
 
     /* Disable all interrupts.                              */
 
