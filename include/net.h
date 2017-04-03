@@ -90,7 +90,7 @@ struct GunStatusData  {
 
 #define LCD_GUN_BULLET	0
 #define LCD_LIFE		1
-
+#define LCD_PWR_INFO	2
 
 struct LcdStatusData {
 	char transMod [1];
@@ -120,6 +120,12 @@ struct MsgPkg {
 	char packTye[1];
 	char packageID [4];
 	char msg_type[1];
+	char killCount[2];
+	char bekillCount[2];
+	char myTeamKillCount[2];
+	char myTeamBeKillCount[2];
+	char headShootCount[2];
+	char headBeShootCount[2];
 };
 
 struct MsgPkgResp {

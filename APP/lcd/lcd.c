@@ -7,6 +7,7 @@
 #include "power.h"
 #include "malloc.h"
 #include "GUI.h"
+#include "display.h"
 
 #ifdef LCD
 #define HOST_IP		(((u32)192 << 24) | ((u32)168 << 16) | ((u32)4 << 8) | 1)
@@ -20,8 +21,10 @@
 #define RIFLE_PORT			(u16)8890
 #define LCD_PORT			(u16)8891
 
-#define OS_RECV_TASK_STACK_SIZE     128
-#define OS_HB_TASK_STACK_SIZE   	 64
+#define OS_RECV_TASK_STACK_SIZE     256
+#define OS_HB_TASK_STACK_SIZE   	256
+#define ITERM_TASK_STACK_SIZE		1024
+
 #define BLOD_MAX					100
 
 enum {
@@ -38,11 +41,14 @@ static OS_TCB RecvTaskStkTCB;
 static CPU_STK  progbarTaskStk[128];
 static OS_TCB progbarTaskStkTCB;
 
+static OS_TCB iterm_task_tcb;
+static CPU_STK iterm_task_stk[ITERM_TASK_STACK_SIZE];
+
 static char recv_buf[1024];                                                    
 static s8 actived;
 
 static u16 packageID = 0;
-static s16 life_left = 0, bulet_left = 0;
+static s16 life_left = 0, bulet_left = 0, clothe_power = 0, gun_power = 0;
 	
 extern s8 get_buletLeft(void);
 extern void set_buletLeft(s8 v);
@@ -53,13 +59,6 @@ extern void lcd_display_line_16bpp(int x, int y, u16 * p, int xsize, int ysize);
 extern int spi_flash_get_data(void * p, const U8 ** ppData, unsigned NumBytes, U32 Off);
 extern int get_keyboard_value(void);
 extern void key_get_ip_suffix(char *s);
-
-
-extern void pic_preload(void);
-extern void show_background(void);
-extern void show_home(void);
-extern void upiterm_show(void);
-extern void ProgBarShow(int);
 
 static s8 sendto_host(char *buf, u16 len)
 {
@@ -127,6 +126,9 @@ static void recv_host_handler(char *buf, u16 len)
 			case LCD_LIFE :
 				life_left = msg_value;
 				break;
+			case LCD_PWR_INFO:
+				clothe_power = msg_value;
+				break;
 		}
 	} else if (packType == ACTIVE_RESPONSE_TYPE) {
 		struct LcdActiveAskData *data = (void *)buf;
@@ -134,7 +136,24 @@ static void recv_host_handler(char *buf, u16 len)
 		set_time(char2u32_16(data->rtc, sizeof(data->rtc)));
 		actived = 1;
 	} else if (packType == MESSAGE_TYPE) {
-		struct MsgPkg msg;
+		struct MsgPkg *msg = (void *)buf;
+		struct statistic_info info;
+		
+		info.bekillCount = CHAR2INT(msg->bekillCount);
+		info.headBeShootCount = CHAR2INT(msg->headBeShootCount);
+		info.headShootCount = CHAR2INT(msg->headShootCount);
+		info.killCount = CHAR2INT(msg->killCount);
+		info.myTeamBeKillCount = CHAR2INT(msg->myTeamBeKillCount);
+		info.myTeamKillCount = CHAR2INT(msg->myTeamKillCount);
+		
+		set_killed(info.bekillCount);
+		set_kill(info.killCount);
+		set_enemy(info.myTeamBeKillCount);
+		set_our(info.myTeamKillCount);
+		set_headshot(info.headShootCount);
+		set_headshoted(info.headBeShootCount);
+		
+		show_home();
 	}
 }
 
@@ -156,6 +175,9 @@ static void recv_gun_handler(char *buf, u16 len)
 				break;
 			case LCD_LIFE :
 				life_left = msg_value;
+				break;
+			case LCD_PWR_INFO:
+				gun_power = msg_value;
 				break;
 		}
 	}
@@ -207,7 +229,7 @@ static void start_gun_tasks(void)
             (OS_ERR*)&err);	
 }
 
-static int prog_val = 0;
+static volatile int prog_val = 0;
 
 static void net_init(void)
 {
@@ -224,14 +246,22 @@ static void net_init(void)
 	if (set_auto_conn(0) < 0)
 		err_log("set_echo");
 	
+	prog_val = 10;
+	
 	if  (close_conn() < 0)
 		err_log("set_echo");
+	
+	prog_val = 20;
 
 	if (set_echo(1) < 0)
 		err_log("set_echo");
 	
+	prog_val = 30;
+	
 	if (set_mode(1) < 0)
 		err_log("set_mode");
+	
+	prog_val = 40;
 			
 	if (connect_ap(host, host_passwd, 3) < 0)
 		err_log("connect_ap");
@@ -271,6 +301,24 @@ static void net_init(void)
 
 u8 blod[100], bulet[100];
 
+static void update_iterm_task(void)
+{
+	struct iterm_info info = {-1};
+	
+	while (1) {
+		get_time(&info.hour, &info.mini, &info.sec);
+		
+		info.clothe_pwr = clothe_power;
+		info.gun_pwr = gun_power;
+		info.lcd_pwr = get_power();
+		info.main_bulet = bulet_left;
+		info.sub_bulet= 0;
+		
+		upiterm_show(&info);
+		sleep(1);
+	}
+}
+
 void start_net_init_task(void)
 {
 	OS_ERR err;
@@ -287,7 +335,21 @@ void start_net_init_task(void)
             (OS_TICK) 0, 
             (void *)0,
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);		
+            (OS_ERR*)&err);
+	
+    OSTaskCreate((OS_TCB *)&iterm_task_tcb, 
+            (CPU_CHAR *)"iterm task", 
+            (OS_TASK_PTR)update_iterm_task, 
+            (void * )0, 
+            (OS_PRIO)OS_TASK_TIMER_PRIO, 
+            (CPU_STK *)&iterm_task_stk[0], 
+            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE/10, 
+            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE, 
+            (OS_MSG_QTY) 0, 
+            (OS_TICK) 0, 
+            (void *)0,
+            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+            (OS_ERR*)&err);					
 }
 
 void main_loop(void)
@@ -296,6 +358,7 @@ void main_loop(void)
 	int need_reflash = 0;
 	int keyboard_bak = 1;
 	int tmp_progress = 0;
+	int active_retry = 30;
 	
 	GUI_Init();
 
@@ -303,7 +366,7 @@ void main_loop(void)
 	
 	GUI_Clear();
 	
-	backlight_on();
+	lcd_trunoff_backlight_countdown();
 	
 	read_spi_flash_header();
 	
@@ -315,32 +378,41 @@ void main_loop(void)
 	
 	pic_preload();
 		
+#if 1
+retry:
+	active_retry = 100;
+	tmp_progress = 0;
+	
 	key_init();
 			
 	GUI_Delay(100);
 	
-	ProgBarInit();
-	
 	show_background();
+	
+	ProgBarInit();
 	
 	start_net_init_task();
 	
-	while (tmp_progress < 110) {
-		tmp_progress += 10;
-		if (tmp_progress > prog_val)
-			ProgBarShow(tmp_progress);
-		else {
-			tmp_progress = prog_val;
-			ProgBarShow(tmp_progress);
-		}
+	while (1) {
+		if (tmp_progress == prog_val) {
+			active_retry--;			
+			if (active_retry == 0)
+				goto retry;
+		} else {
+			tmp_progress += 2;
+			ProgBarShow(tmp_progress);					
+		}			
 		
-		GUI_Delay(1000);
+		if (tmp_progress == 120)
+			break;
+		
+		GUI_Delay(100);
 	}
 	
 	ProgBarDelete();
 	
 	GUI_Delay(100);
-	
+#endif	
 	show_home();
 	
 	ok_notice();
@@ -399,8 +471,6 @@ void main_loop(void)
 		}
 		
 		msleep(100);
-		
-		
 	}
 #endif
 }

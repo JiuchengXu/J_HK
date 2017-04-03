@@ -8,6 +8,7 @@
 #define OS_TASK_SOFTRTC_PRIO	  10
 #define OS_TASK_TRIGGER_PRIO		11
 #define OS_TASK_IRDA_PRIO		12
+#define OS_TASK_HB_PRIO		13
 
 
 #define WIFI_UART_INT_PRIO		0

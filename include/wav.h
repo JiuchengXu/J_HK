@@ -39,6 +39,6 @@ typedef struct
 #define I2S_ENABLE_MASK      0x0400
 #define DMA_MAX(x)           (((x) <= DMA_MAX_SZE)? (x):DMA_MAX_SZE)
 
-void wav_play(void);
+int wav_play(int);
 
 #endif 

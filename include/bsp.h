@@ -120,7 +120,7 @@ void blod_init(void);
 
 #ifdef GUN
 void led_38k_init(void);
-void wav_play(void);
+int wav_play(int);
 void wav_pre_read(void);
 void irda_init(void);
 void bulet_box_init(void);

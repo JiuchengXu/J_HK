@@ -65,7 +65,7 @@ static inline u32 char2u32_16(char *s, s8 bit_len)
 			ret += 10 + (s[i] - 'a');
 	}
 	
-	return ret; //16½øÖÆµÄ
+	return ret; 
 }
 
 static inline u32 char2u32_10(char *s, s8 bit_len)

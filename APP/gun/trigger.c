@@ -12,21 +12,39 @@
 #define GUN_MODE_SINGLE	2
 #define GUN_MODE_OTHER	3
 
+#if 0
 #define GUN_BOLT_GPIO		GPIOC
 #define GUN_BOLT_GPIO_PIN	GPIO_Pin_1
 
 #define GUN_MODE1_GPIO		GPIOC
 #define GUN_MODE1_GPIO_PIN	GPIO_Pin_2
 
-#define GUN_MODE2_GPIO		GPIOC
-#define GUN_MODE2_GPIO_PIN	GPIO_Pin_13
-
-#define GUN_TRIGER_GPIO		GPIOD
-#define GUN_TRIGER_GPIO_PIN	GPIO_Pin_2
+#define GUN_MODE2_GPIO		GPIOD
+#define GUN_MODE2_GPIO_PIN	GPIO_Pin_2
 
 
 #define GUN_MOTOR_GPIO		GPIOB
 #define GUN_MOTOR_GPIO_PIN	GPIO_Pin_6
+
+#define GUN_TRIGER_GPIO		GPIOC
+#define GUN_TRIGER_GPIO_PIN	GPIO_Pin_13
+#else
+
+#define GUN_BOLT_GPIO		GPIOD
+#define GUN_BOLT_GPIO_PIN	GPIO_Pin_2
+
+#define GUN_MODE1_GPIO		GPIOC
+#define GUN_MODE1_GPIO_PIN	GPIO_Pin_13
+
+#define GUN_MODE2_GPIO		GPIOD
+#define GUN_MODE2_GPIO_PIN	GPIO_Pin_2
+
+#define GUN_MOTOR_GPIO		GPIOB
+#define GUN_MOTOR_GPIO_PIN	GPIO_Pin_6
+
+#define GUN_TRIGER_GPIO		GPIOC
+#define GUN_TRIGER_GPIO_PIN	GPIO_Pin_2
+#endif
 
 extern void send_charcode(u16 code);
 extern void wav_play_up(void);
@@ -153,12 +171,16 @@ s8 trigger_handle(u16 charcode)
 {
 	s8 mode;
 	s8 bulet_used_nr = 0;
+	static int i = 0;
 	
 	if (!is_bolt_on() && trigger_get_status()) {
 
 		send_charcode(charcode);
 		
-		wav_play();
+		wav_play(0);
+		
+		if (i == 3)
+			i = 0;
 
 		startup_motor();
 		

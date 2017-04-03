@@ -34,7 +34,7 @@ struct eeprom_key_info {
 	char user_id[16];
 	char ip_suffix[3];
 	char blod_def[3];
-	char menoy[3];
+	char bulet[3];
 	char host_ip[4][3];
 	char ssid[WIFI_ID_PAWD_LEN];
 	char passwd[WIFI_ID_PAWD_LEN]; 
@@ -65,6 +65,7 @@ static struct eeprom_key_info gen_key;
 static struct eeprom_special_key spec_key;
 
 static volatile s8 key_fresh_status;
+static int key_first_use = 1;
 
 //char eeprom[] = "SN145784541458900000015332453213252064064";//假衣服
 static char eeprom[] = "s00000000000000100000153324574472530640641921680011041103\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0Q!W@E#r4\0\0\0\0\0\0\0\0\0\0\0\0"; //真衣服
@@ -103,17 +104,27 @@ static void read_key_from_eeprom(void)
 		upload_spec_key((u8 *)tmp_key.spec_key.key);
 		
 	} else {		
-		//int2chars(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
+		//int2chars_16(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
 		
 		//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
-		
-		gen_key = tmp_key.gen_key;
+		if (key_first_use) {
+			gen_key = tmp_key.gen_key;
+			key_first_use = 0;
+		} else if (memcmp(gen_key.sn, tmp_key.gen_key.sn, sizeof(gen_key.sn)) == 0)
+			gen_key = tmp_key.gen_key;
 	}
 #endif
 	
 #ifdef GUN
-	key_Reads(0, (u8 *)&gen_key, sizeof(gen_key));
+	union key tmp_key;
 	
+	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
+	
+	int2chars_16(tmp_key.gen_key.bulet, 0, sizeof(tmp_key.gen_key.bulet));
+	
+	//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
+	
+	gen_key = tmp_key.gen_key;
 #endif
 	
 #ifdef LCD
@@ -185,17 +196,17 @@ void key_get_sn(char *s)
 	memcpy(s, gen_key.sn, 16);
 }
 
-s8 key_get_blod(void)
+s16 key_get_blod(void)
 {
-	s8 ret = (s8)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
+	s16 ret = (s16)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
 	int2chars_16(gen_key.blod_def, 0, sizeof(gen_key.blod_def));
 	
 	return ret;
 }
 
-static s8 _key_get_blod(void)
+static s16 _key_get_blod(void)
 {
-	s8 ret = (s8)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
+	s16 ret = (s16)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
 	
 	return ret;
 }
@@ -257,10 +268,11 @@ void key_init(void)
 				continue;
 			
 			read_key_from_eeprom();
-			
+
+#if 		defined(CLOTHE)	
 			if (_key_get_blod() == 0) //即使是新的key，但是key里面没有钱(血量)
 				continue;
-			
+#endif			
 			break;
 		}		
 		

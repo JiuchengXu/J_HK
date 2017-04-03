@@ -39,18 +39,42 @@ static GUI_CONST_STORAGE GUI_BITMAP _bmBatteryEmpty_27x14 = {
   &PalBatteryEmpty_27x14   // Pointer to palette
 };
 
-void battery_show(int p)
-{	
+void battery_show_at(int p, int x, int y)
+{
 	float v;
-			
-	GUI_DrawBitmap(&_bmBatteryEmpty_27x14, 400, 4);
+
+	v = (float)p / 5;
+	
+	if (v == 0)
+		return;
+	
+	GUI_DrawBitmap(&_bmBatteryEmpty_27x14, x, y);
 
 	if (p <= 15)
 		GUI_SetColor(GUI_RED);
 	else
 		GUI_SetColor(GUI_GREEN);
 	
-	v = (float)p / 5;
+	GUI_FillRect(x + 23 - (int)v,  y +  2, x + 24, y + 11);		
+}
 
-	GUI_FillRect(423 - (int)v, 6, 424, 15);	
+void lcd_battery_show(int p)
+{	
+	float v;
+			
+	battery_show_at(p, 450, 4);
+}
+
+void clothe_battery_show(int p)
+{
+	float v;
+			
+	battery_show_at(p, 400, 4);	
+}
+
+void gun_battery_show(int p)
+{
+	float v;
+			
+	battery_show_at(p, 350, 4);	
 }

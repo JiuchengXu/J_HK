@@ -121,7 +121,12 @@ static int upload_status_data(void)
 	msleep(20);
 	
 	return sendto_host((char *)&data, sizeof(data));
+}
 
+
+static int power_status_data(void)
+{	
+	upload_lcd(LCD_PWR_INFO, get_power());
 }
 
 static int upload_heartbeat(void)
@@ -194,12 +199,11 @@ static void recv_task(void)
 	}
 }
  
-static void hb_task(void)
+static void power_status_task(void)
 {
-	while (1) {
-		upload_heartbeat();
-		
-		sleep(20);
+	while (1) {	
+		sleep(20);	
+		power_status_data();		
 	}	
 }
 	
@@ -267,10 +271,10 @@ static void start_gun_tasks(void)
             (void *)0,
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
             (OS_ERR*)&err);	
-/*				
+				
     OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
             (CPU_CHAR *)"heart beat task", 
-            (OS_TASK_PTR)hb_task, 
+            (OS_TASK_PTR)power_status_task, 
             (void * )0, 
             (OS_PRIO)OS_TASK_HB_PRIO, 
             (CPU_STK *)&HBTaskStk[0], 
@@ -280,7 +284,7 @@ static void start_gun_tasks(void)
             (OS_TICK) 0, 
             (void *)0,
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);*/
+            (OS_ERR*)&err);
 }
 
 s8 get_actived_state(void)
@@ -318,32 +322,41 @@ void main_loop(void)
 	s8 bulet_bak = get_buletLeft();
 	s8 bulet_used_nr;
 	s8 i;
+	int active_retry = 30;
 	
 	blue_led_on();	
 	
 #if 1
+retry:	
+	active_retry = 30;
+	
 	key_init();
 	
 	net_init();
 					
 	start_gun_tasks();
 	
-	while (!actived) {
+	while (!actived && --active_retry) {
 		active_request();
 		sleep(2);
 	}
+	
+	if (active_retry == 0)
+		goto retry;
 #endif	
 	
-	set_buletLeft(100);
+	//set_buletLeft(100);
 	
 	upload_status_data();
 	
 	green_led_on();
 	
+	ok_notice();
+	
 	//watch_dog_feed_task_init();
 	
 	while (1) {
-		#if 0
+		#if 1
 		if (key_get_fresh_status())
 			key_insert_handle();
 		#endif

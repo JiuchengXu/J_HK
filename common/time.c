@@ -93,7 +93,7 @@ void set_time(u32 time)
 	RTC_Init(time);
 }
 
-u32 get_time(u8 *h, u8 *m, u8 *sec)
+u32 get_time(s8 *h, s8 *m, s8 *sec)
 {
 	if (init_flag == 0)
 		return 0;

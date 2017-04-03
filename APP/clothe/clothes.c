@@ -28,6 +28,11 @@ static u32 HOST_IP;
 #define OS_HB_TASK_STACK_SIZE   	 256
 #define BLOD_MAX					100
 
+enum {
+	TEAM_COLOR_RED	=	0,
+	TEAM_COLOR_BLUE	=	1,
+};
+
 #define CLOTHE_RECEIVE_MODULE_NUMBER	8
 
 enum {
@@ -55,7 +60,7 @@ static OS_TCB HBTaskStkTCB;
 static char recv_buf[1024];                                                    
 static u16 characCode;
 static s8 actived;
-static volatile u16 blod, bulet;
+static volatile s16 blod, bulet;
 static u16 packageID = 0;
 
 static struct attacked_info_record att_info;
@@ -67,6 +72,7 @@ extern s8 key_get_blod(void);
 extern s8 key_get_fresh_status(void);
 extern u32 get_time(u8 *, u8 *, u8 *);
 extern void get_wifi_info(char *id, char *passwd);
+extern void clothe_led(char *s, int);
 
 static s8 sendto_host(char *buf, u16 len)
 {
@@ -95,8 +101,8 @@ static s8 sendto_lcd(char *buf, u16 len)
 
 static void set_attack_info(u16 *charcode, s8 *head_shoot, u32 time)
 {
-	int i;
-	
+	int i = 0;
+#if 0	
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER && charcode[i] != 0; i++) {
 		INT2CHAR(att_info.info.characCode[att_info.cnt], charcode[i]);
 		if (head_shoot[i] == 1)
@@ -111,6 +117,21 @@ static void set_attack_info(u16 *charcode, s8 *head_shoot, u32 time)
 		if (att_info.cnt == 10)
 			att_info.cnt = 0;
 	}
+#endif
+	
+	INT2CHAR(att_info.info.characCode[att_info.cnt], charcode[i]);
+	
+	if (head_shoot[i] == 1)
+		INT2CHAR(att_info.info.ifHeadShot[att_info.cnt], 1);
+	else
+		INT2CHAR(att_info.info.ifHeadShot[att_info.cnt], 0);
+	
+	INT2CHAR(att_info.info.attachTime[att_info.cnt], time);
+	
+	att_info.cnt++;
+	
+	if (att_info.cnt == 10)
+		att_info.cnt = 0;
 }
 
 static void get_attack_info(struct attacked_info *info)
@@ -172,6 +193,11 @@ static int upload_status_data(void)
 	upload_lcd(LCD_LIFE, blod);
 	msleep(20);
 	return sendto_host((char *)&data, sizeof(data));
+}
+
+static int power_status_data(void)
+{	
+	upload_lcd(LCD_PWR_INFO, get_power());
 }
 
 static int upload_ip_info(void)
@@ -274,6 +300,14 @@ static void recv_host_handler(char *buf, u16 len)
 	if (packType == ACTIVE_RESPONSE_TYPE) {
 		actived = 1;
 		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
+		switch (characCode >> 14) {
+			case TEAM_COLOR_RED:
+				clothe_led("red", 1);
+				break;
+			case TEAM_COLOR_BLUE:
+				clothe_led("green", 1);
+				break;
+		}
 		set_time(char2u32_16(data->curTime, sizeof(data->curTime)));
 	} 
 }
@@ -292,7 +326,7 @@ static void recv_host_msg_handler(char *buf, u16 len)
 		INT2CHAR(resp.rx_ok, 0);
 		sendto_host_msg((char *)&resp, sizeof(resp));
 		msleep(20);
-		sendto_lcd((char *)&resp, sizeof(resp));
+		sendto_lcd((char *)data, sizeof(*data));
 	}	
 }
 
@@ -370,11 +404,11 @@ static void recv_task(void)
 	}
 }
 
-static void status_task(void)
+static void power_status_task(void)
 {	
 	while (1) {	
-		sleep(20);	
-		upload_status_data();		
+		sleep(10);	
+		power_status_data();		
 	}
 }
 
@@ -396,9 +430,9 @@ static void start_clothe_tasks(void)
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
             (OS_ERR*)&err);	
 				
- /*   OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
+   OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
             (CPU_CHAR *)"heart beat task", 
-            (OS_TASK_PTR)status_task, 
+            (OS_TASK_PTR)power_status_task, 
             (void * )0, 
             (OS_PRIO)OS_TASK_HB_PRIO, 
             (CPU_STK *)&HBTaskStk[0], 
@@ -408,7 +442,7 @@ static void start_clothe_tasks(void)
             (OS_TICK) 0, 
             (void *)0,
             (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);*/
+            (OS_ERR*)&err);
 }
 
 static void net_init(void)
@@ -486,9 +520,17 @@ void upload_spec_key(u8 *key)
 void main_loop(void)
 {
 	u32 charcode;
-	u16 blod_bak;
-
+	s16 blod_bak;
+	int active_retry = 30;
+	
+	memset(&att_info, '0', sizeof(att_info));
+	att_info.cnt = 0;
+	
 #if 1	
+	
+retry:	
+	active_retry = 30;
+	
 	key_init();
 		
 	blod_bak = blod = key_get_blod();
@@ -497,11 +539,17 @@ void main_loop(void)
 		
 	start_clothe_tasks();
 		
-	while (!actived) {
+	while (!actived && --active_retry) {
 		active_request();
 		sleep(2);
 	}
-#endif		
+	
+	if (active_retry == 0)
+		goto retry;
+	
+	upload_ip_info();
+#endif
+	
 	green_led_on();
 	
 	ok_notice();	
@@ -514,17 +562,30 @@ void main_loop(void)
 		if (irda_get_shoot_info(g_characode, g_head_shoot) != 0 && blod > 0) {
 			set_attack_info(g_characode, g_head_shoot, get_time(NULL, NULL, NULL));
 			
-			if (charcode & 0x80000000)
-				blod = 0;
+			if (g_head_shoot[0] == 1)
+				blod -= 50 ;
 			else
-				blod--;
+				blod -= 10;
 			
-			if (blod == 0)
+			if (blod <= 0) {
 				work_flag_dipatch_gun(STOP_WORK);
+				clothe_led("all", 1);
+				
+				while (blod > 0) {
+					if (key_get_fresh_status()) {
+						if (blod <= 0)
+							work_flag_dipatch_gun(START_WORK);
+						
+						blod += key_get_blod();			
+					}
+				}
+					
+				clothe_led("all", 0);
+			}
 		}
 #if 1		
 		if (key_get_fresh_status()) {
-			if (blod == 0)
+			if (blod <= 0)
 				work_flag_dipatch_gun(START_WORK);
 			
 			blod += key_get_blod();			

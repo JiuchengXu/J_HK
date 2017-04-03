@@ -84,6 +84,7 @@ void LCD_GPIO_Config(void)
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 ; 
     GPIO_Init(GPIOE, &GPIO_InitStructure); 
 
+	Lcd_Light_OFF;
  
 	//GPIO_SetBits(GPIOA, GPIO_Pin_11);
 }
@@ -278,7 +279,7 @@ void TFTLCD_Init(void)
 	
 	mutex_init(&lcd_lock);
 	
-	OSTmrCreate(&timer, "LCD backlight", 100, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
+	OSTmrCreate(&timer, "LCD backlight", 300, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
 	
-	lcd_trunoff_backlight_countdown();
+	//lcd_trunoff_backlight_countdown();
 } 

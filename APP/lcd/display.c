@@ -6,15 +6,15 @@
 #include "helper.h"
 #include "PROGBAR.h"
 #include "priority.h"
+#include "mutex.h"
+#include "display.h"
 
 extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
-#define ITERM_TASK_STACK_SIZE		1024
 #define FONT_BASE_ADDR		(U32)(3 * 0x100000)
 
-static OS_TCB iterm_task_tcb;
-static CPU_STK iterm_task_stk[ITERM_TASK_STACK_SIZE];
 static PROGBAR_Handle ahProgBar[2];
+static struct mutex_lock lock;
 
 GUI_FONT     XBFFont;
 GUI_XBF_DATA XBF_Data;
@@ -157,6 +157,26 @@ static char task_font[][50] = {
 "\xe8\x83\x9c\xe8\xb4\x9f\xe5\x88\xa4\xe5\xae\x9a"	
 };
 
+/*
+沙场点兵方知好男儿
+马革裹尸才是真英雄
+唯有尝尽摸爬滚打
+历经枪林弹雨
+方可百炼成钢。
+
+任何一队累计积分率
+先达到120即为胜利。
+*/
+static char wanfa[8][40] = {
+"\xe6\xb2\x99\xe5\x9c\xba\xe7\x82\xb9\xe5\x85\xb5\xe6\x96\xb9\xe7\x9f\xa5\xe5\xa5\xbd\xe7\x94\xb7\xe5\x84\xbf",
+"\xe9\xa9\xac\xe9\x9d\xa9\xe8\xa3\xb9\xe5\xb0\xb8\xe6\x89\x8d\xe6\x98\xaf\xe7\x9c\x9f\xe8\x8b\xb1\xe9\x9b\x84",
+"\xe5\x94\xaf\xe6\x9c\x89\xe5\xb0\x9d\xe5\xb0\xbd\xe6\x91\xb8\xe7\x88\xac\xe6\xbb\x9a\xe6\x89\x93",
+"\xe5\x8e\x86\xe7\xbb\x8f\xe6\x9e\xaa\xe6\x9e\x97\xe5\xbc\xb9\xe9\x9b\xa8",
+"\xe6\x96\xb9\xe5\x8f\xaf\xe7\x99\xbe\xe7\x82\xbc\xe6\x88\x90\xe9\x92\xa2\xe3\x80\x82",
+"\xe4\xbb\xbb\xe4\xbd\x95\xe4\xb8\x80\xe9\x98\x9f\xe7\xb4\xaf\xe8\xae\xa1\xe7\xa7\xaf\xe5\x88\x86\xe7\x8e\x87",
+"\xe5\x85\x88\xe8\xbe\xbe\xe5\x88\xb0""120\xe5\x8d\xb3\xe4\xb8\xba\xe8\x83\x9c\xe5\x88\xa9\xe3\x80\x82",
+};
+
 static int spi_flash_get_bg(void * p, const U8 ** ppData, unsigned NumBytes, U32 Off)
 {
 	if (NumBytes > sizeof(get_data_ex))
@@ -246,14 +266,102 @@ static void show_statistac(void)
 	display_iterm(iterm[i++], 308, 160, info.enemy);	
 }
 
+static void display_hanzi(char *src, int x, int y, GUI_COLOR color)
+{	
+	GUI_COLOR bak = GUI_GetColor();
+	
+	GUI_SetColor(color);
+	
+	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
+	
+	GUI_UC_SetEncodeUTF8();
+	
+	GUI_SetFont(&XBFFont);
+	
+	GUI_DispStringAt(src, x, y);
+	
+	GUI_SetColor(bak);
+}
+
+static void display_en(char *src, int x, int y, GUI_COLOR color)
+{
+	GUI_COLOR bak = GUI_GetColor();
+	
+	GUI_SetColor(color);
+	
+	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
+
+	GUI_SetFont(GUI_FONT_8X16);
+	
+	GUI_DispStringAt(src, x, y);
+
+	GUI_SetColor(bak);	
+}
+
+static void display_task_info(void)
+{
+	int i, j;
+	
+	for (i = 0, j = 0; i < 5; i++, j+= 30)
+		display_hanzi(wanfa[i], 20, 100 + j, GUI_GREEN);
+	
+	for (j = 0; i < 7; i++, j+= 30)
+		display_hanzi(wanfa[i], 234, 100 + j, GUI_GREEN);
+}
+
+static void clock_show(s8 hour, s8 min, s8 sec)
+{
+	char time[10];
+	int ret;
+	
+	if (hour == -1 || min == -1 || sec == -1)
+		return;
+
+	memset(time, 0 , sizeof(time));
+	
+	sprintf(time, "%02d:%02d:%02d", hour, min, sec);
+	
+	GUI_SetFont(&GUI_Font16_ASCII);
+	GUI_SetColor(GUI_WHITE);
+	GUI_DispStringAt(time, 240, 4);		
+}
+
+static int _cbGetData16(U32 Off, U16 NumBytes, void * pVoid, void * pBuffer)
+{
+	flash_bytes_read(FONT_BASE_ADDR + Off, pBuffer, NumBytes);
+	
+	return 0;
+}
+
+void read_spi_flash_header(void)
+{
+	flash_bytes_read(0, (u8 *)&img_section, sizeof(img_section));
+	
+	if (img_section.pic_num >= 1 && img_section.pic_num <= 64)
+		return;
+	
+	GUI_Clear();
+	
+	display_en("Please download Image file", 10, 100, GUI_WHITE);
+	
+	while (1)
+		sleep(1);
+}
+
 void show_background(void)
 {
+	mutex_lock(&lock);
+	
 	GUI_MEMDEV_Select(0);	
 	GUI_MEMDEV_CopyToLCDAt(bg_hmem, 0, 20);
+	
+	mutex_unlock(&lock);
 }
 
 void show_msg(void)
 {
+	mutex_lock(&lock);
+	
 	GUI_MEMDEV_Select(home1_hmem);	
 		
 	GUI_BMP_DrawEx(spi_flash_get_msg, NULL, 0, 0);
@@ -262,14 +370,14 @@ void show_msg(void)
 	GUI_DrawBitmap(&bmmsg_notify1, 400, 55);
 	
 	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);
-
-	//GUI_PNG_Draw(_acmsg_notify, sizeof(_acmsg_notify), 100, 100);
 	
-	//GUI_DrawBitmap(&bmmsg_notify1, 400, 35);
+	mutex_unlock(&lock);
 }
 
 void show_task(void)
 {
+	mutex_lock(&lock);
+	
 	GUI_MEMDEV_Select(home1_hmem);
 	
 	//GUI_BMP_DrawEx(spi_flash_get_bg, NULL, 0, 0);
@@ -297,23 +405,29 @@ void show_task(void)
 	
 	GUI_FillRect(234, 40, 440, 90);
 	
-	GUI_SetAlpha(120);
+	GUI_SetAlpha(50);
 	
 	GUI_SetColor(GUI_DARKGRAY);
 	
 	GUI_FillRect(20, 90, 226, 240);
 	
-	GUI_FillRect(234, 90, 440, 240);;
+	GUI_FillRect(234, 90, 440, 240);
+	
+	display_task_info();
 	
 	GUI_SetAlpha(0);
 	
 	GUI_MEMDEV_Select(0);
 	
 	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);	
+	
+	mutex_unlock(&lock);
 }
 
 void show_home(void)
-{		
+{
+	mutex_lock(&lock);
+	
 	GUI_MEMDEV_Select(home1_hmem);
 	
 	GUI_MEMDEV_Write(bg_hmem);
@@ -340,7 +454,9 @@ void show_home(void)
 	
 	GUI_MEMDEV_Select(0);
 	
-	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);	
+	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);
+
+	mutex_unlock(&lock);
 }
 
 void set_kill(int kill)
@@ -383,29 +499,12 @@ void set_enemy(int enemy)
 	info.enemy = enemy;	
 }
 
-void clock_show(void)
-{
-	char time[10];
-	u8 hour, min, sec;
-	int ret;
-
-	memset(time, 0 , sizeof(time));
-	
-	//GUI_SetBkColor(GUI_TRANSPARENT);
-	
-	if (get_time(&hour, &min, &sec) == 0)
-		return;
-	
-	sprintf(time, "%02d:%02d:%02d", hour, min, sec);
-	
-	GUI_SetFont(&GUI_Font16_ASCII);
-	GUI_SetColor(GUI_WHITE);
-	GUI_DispStringAt(time, 240, 4);		
-}
-
-void upiterm_show(void)
+void upiterm_show(struct iterm_info *info)
 {
 	static GUI_MEMDEV_Handle iterm_hmem = 0;
+	char bulet[20];
+	
+	mutex_lock(&lock);
 	
 	if (iterm_hmem == 0) 
 		iterm_hmem = GUI_MEMDEV_Create(0, 0, 480, 20);
@@ -416,16 +515,25 @@ void upiterm_show(void)
 	
 	GUI_FillRect(0, 0, 479, 20);
 
-	battery_show(get_power());
+	lcd_battery_show(info->lcd_pwr);
+	
+	clothe_battery_show(info->clothe_pwr);
+	
+	gun_battery_show(info->gun_pwr);
+	
+	sprintf(bulet, "Z %d    F %d", info->main_bulet, info->sub_bulet);
+	
+	display_en(bulet, 20, 5, GUI_WHITE);
 
-	clock_show();
+	clock_show(info->hour, info->mini, info->sec);
 	
 	GUI_MEMDEV_Select(0);
 	
 	GUI_MEMDEV_CopyToLCD(iterm_hmem);
 	
+	mutex_unlock(&lock);	
 }
-
+#if 0
 static void Draw(void *data)
 {
 	GUI_AUTODEV_INFO *pAutoDevInfo = data;
@@ -451,6 +559,7 @@ void upiterm_show1(void)
 							&Draw,
 							&AutoDevInfo);
 }
+#endif
 
 void ProgBarInit(void) 
 {
@@ -478,43 +587,12 @@ void ProgBarDelete(void)
 	PROGBAR_Delete(ahProgBar[1]);
 }
 
-static void update_iterm_task(void)
-{
-	//GUI_AUTODEV AutoDev;
-	//GUI_AUTODEV_INFO AutoDevInfo;
-	
-	//GUI_MEMDEV_CreateAuto(&AutoDev);
-	
-	//set_time(0x58587480);
-	
-	while (1) {
-		//GUI_MEMDEV_DrawAuto(&AutoDev, /* Use GUI_AUTODEV-object for drawing */
-						//	&AutoDevInfo,
-							//&Draw,
-							//&AutoDevInfo);
-		upiterm_show();
-		msleep(500);
-	}
-}
-
 void pic_preload(void)
 {
 	OS_ERR err;
-#if 1		
-    OSTaskCreate((OS_TCB *)&iterm_task_tcb, 
-            (CPU_CHAR *)"net reciv task", 
-            (OS_TASK_PTR)update_iterm_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_TIMER_PRIO, 
-            (CPU_STK *)&iterm_task_stk[0], 
-            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);	
-#endif		
+	
+	mutex_init(&lock);
+	
 	if (home1_hmem == 0)
 		home1_hmem = GUI_MEMDEV_Create(0, 0, 480, 320);
 
@@ -524,13 +602,16 @@ void pic_preload(void)
 	GUI_MEMDEV_Select(bg_hmem);	
 		
 	GUI_BMP_DrawEx(spi_flash_get_bg, NULL, 0, 0);
+
+	GUI_MEMDEV_Select(0);
 }
 
-int _cbGetData16(U32 Off, U16 NumBytes, void * pVoid, void * pBuffer)
+void display_key(void)
 {
-	flash_bytes_read(FONT_BASE_ADDR + Off, pBuffer, NumBytes);
+	char msg[] = "\请插入\\";
 	
-	return 0;
+	display_hanzi(msg, 100, 100, GUI_WHITE);
+	display_en("key...", 170, 101, GUI_WHITE);
 }
 
 void XBF_font_init(void)
@@ -543,56 +624,9 @@ void XBF_font_init(void)
 	if (ret != 0) {
 		GUI_Clear();
 		
-		GUI_DispStringAt("Please downlaod font file", 10, 200);
+		display_en("Please downlaod font file", 10, 200, GUI_WHITE);
 		
 		while (1)
 			sleep(1);
 	}
-}
-
-void display_hanzi(char *src, int x, int y)
-{
-	GUI_SetColor(GUI_WHITE);
-	
-	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
-	
-	GUI_UC_SetEncodeUTF8();
-	
-	GUI_SetFont(&XBFFont);
-	
-	GUI_DispStringAt(src, x, y);
-}
-
-void display_en(char *src, int x, int y)
-{
-	GUI_SetColor(GUI_WHITE);
-	
-	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
-
-	GUI_SetFont(GUI_FONT_8X16);
-	
-	GUI_DispStringAt(src, x, y);	
-}
-
-void display_key(void)
-{
-	char msg[] = "\请插入\\";
-	
-	display_hanzi(msg, 100, 100);
-	display_en("key...", 170, 101);
-}
-
-void read_spi_flash_header(void)
-{
-	flash_bytes_read(0, (u8 *)&img_section, sizeof(img_section));
-	
-	if (img_section.pic_num >= 1 && img_section.pic_num <= 64)
-		return;
-	
-	GUI_Clear();
-	
-	display_en("Please download Image file", 10, 100);
-	
-	while (1)
-		sleep(1);
 }

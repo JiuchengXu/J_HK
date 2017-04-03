@@ -127,14 +127,13 @@ int i2c_opt(I2C_TypeDef *I2C, u8 Op, u8 slave_addr, u8 Address, u8 *Buf, u16 Len
 			fix_I2C_busy(I2C);
 		
 		I2C_ITConfig(I2C, I2C_IT_EVT | I2C_IT_BUF, ENABLE);
-		//I2C_ITConfig(I2C, I2C_IT_BUF, ENABLE);
 					
 		I2C_GenerateSTART(I2C, ENABLE);
 					
-		OSSemPend(&i2c_buf->sem, 100, OS_OPT_PEND_BLOCKING, NULL, &err);
+		OSSemPend(&i2c_buf->sem, 10 * Len, OS_OPT_PEND_BLOCKING, NULL, &err);
 		
 		if (err != OS_ERR_NONE) {
-			I2C_GenerateSTOP(I2C, ENABLE);
+			//I2C_GenerateSTOP(I2C, DISABLE);
 			I2C_ITConfig(I2C, I2C_IT_BUF | I2C_IT_EVT, DISABLE);
 		}
 			
@@ -173,7 +172,14 @@ void i2c_isr_test(void)
 
 void I2C1_EV_IRQHandler(void)
 {
-#define I2C 	I2C1	
+#define I2C 	I2C1
+	FlagStatus status = I2C_GetFlagStatus(I2C, I2C_FLAG_TIMEOUT | I2C_FLAG_AF);
+	
+	if (status == SET) {
+		I2C_ClearFlag(I2C, I2C_FLAG_TIMEOUT | I2C_FLAG_AF);
+		return;
+	}
+	
 	switch (I2C_GetLastEvent(I2C)) {
 		case I2C_EVENT_MASTER_MODE_SELECT:		
 			if (i2c1_buf.op == I2C_WR_OP) {
@@ -236,7 +242,7 @@ void I2C1_EV_IRQHandler(void)
 				OS_ERR err;
 				
 				I2C_ITConfig(I2C, I2C_IT_BUF | I2C_IT_EVT, DISABLE);
-				OSSemPost(&i2c1_buf.sem, OS_OPT_POST_ALL, &err);	
+				OSSemPost(&i2c1_buf.sem, OS_OPT_POST_ALL | OS_OPT_POST_NO_SCHED, &err);	
 				
 				break;
 			}
@@ -249,7 +255,14 @@ void I2C1_EV_IRQHandler(void)
 void I2C2_EV_IRQHandler(void)
 {
 #define I2C 	I2C2
-#define i2c_buf		i2c2_buf	
+#define i2c_buf		i2c2_buf
+	FlagStatus status = I2C_GetFlagStatus(I2C, I2C_FLAG_TIMEOUT | I2C_FLAG_AF);
+	
+	if (status == SET) {
+		I2C_ClearFlag(I2C, I2C_FLAG_TIMEOUT | I2C_FLAG_AF);
+		return;
+	}
+	
 	switch (I2C_GetLastEvent(I2C)) {
 		case I2C_EVENT_MASTER_MODE_SELECT:		
 			if (i2c_buf.op == I2C_WR_OP) {
@@ -294,7 +307,7 @@ void I2C2_EV_IRQHandler(void)
 				if (i2c_buf.idx == i2c_buf.len) {
 					I2C_GenerateSTOP(I2C, ENABLE);
 					I2C_ITConfig(I2C, I2C_IT_BUF | I2C_IT_EVT, DISABLE);
-					OSSemPost(&i2c_buf.sem, OS_OPT_POST_ALL, &err);
+					OSSemPost(&i2c_buf.sem, OS_OPT_POST_ALL | OS_OPT_POST_NO_SCHED, &err);
 				}
 			}
 			
@@ -312,7 +325,7 @@ void I2C2_EV_IRQHandler(void)
 				OS_ERR err;
 				
 				I2C_ITConfig(I2C, I2C_IT_BUF | I2C_IT_EVT, DISABLE);
-				OSSemPost(&i2c_buf.sem, OS_OPT_POST_ALL, &err);	
+				OSSemPost(&i2c_buf.sem, OS_OPT_POST_ALL | OS_OPT_POST_NO_SCHED, &err);	
 				
 				break;
 			}

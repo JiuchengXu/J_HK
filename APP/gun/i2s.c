@@ -130,7 +130,7 @@ static void I2S_GPIO_Config(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 	
-	//GPIO_ResetBits(GPIOC, GPIO_Pin_12);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_12);
 	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 }
 
@@ -166,13 +166,13 @@ void I2S_Bus_Init(void)
 	/* 配置I2S工作模式 */
 	I2S_Mode_Config();
 
-	I2S_Cmd(SPI2, ENABLE);
+	//I2S_Cmd(SPI2, ENABLE);
 
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 	
 	DMA_I2S_Configuration(0, 0xFFFE);
 	
-	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_RESET);
+	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 }
 
 void Audio_MAL_Play(u32 Addr, u32 Size)
@@ -186,36 +186,36 @@ void Audio_MAL_Play(u32 Addr, u32 Size)
 		I2S_Cmd(SPI2, ENABLE);
 }
 
-u8 WaveParsing(void)
+u8 WaveParsing(u16 *buffer)
 {
   	u32 temp=0x00;
   	u32 extraformatbytes=0;
 
-  	temp=ReadUnit((u8*)buffer1,0,4,BigEndian);//?'RIFF'
+  	temp=ReadUnit((u8*)buffer,0,4,BigEndian);//?'RIFF'
   	if(temp!=CHUNK_ID)return 1;
 	
-  	WAVE_Format.RIFFchunksize=ReadUnit((u8*)buffer1,4,4,LittleEndian);//?????
+  	WAVE_Format.RIFFchunksize=ReadUnit((u8*)buffer,4,4,LittleEndian);//?????
 	
-  	temp=ReadUnit((u8*)buffer1,8,4,BigEndian);//?'WAVE'
+  	temp=ReadUnit((u8*)buffer,8,4,BigEndian);//?'WAVE'
   	if(temp!=FILE_FORMAT)return 2;
 	
-  	temp=ReadUnit((u8*)buffer1,12,4,BigEndian);//?'fmt '
+  	temp=ReadUnit((u8*)buffer,12,4,BigEndian);//?'fmt '
 	
   	if(temp!=FORMAT_ID)return 3;
 	
-  	temp=ReadUnit((u8*)buffer1,16,4,LittleEndian);//?'fmt'????
+  	temp=ReadUnit((u8*)buffer,16,4,LittleEndian);//?'fmt'????
 	
   	if(temp!=0x10)extraformatbytes=1;
 	
-  	WAVE_Format.FormatTag=ReadUnit((u8*)buffer1,20,2,LittleEndian);//?????
+  	WAVE_Format.FormatTag=ReadUnit((u8*)buffer,20,2,LittleEndian);//?????
 	
   	if(WAVE_Format.FormatTag!=WAVE_FORMAT_PCM)return 4;  
 	
-  	WAVE_Format.NumChannels=ReadUnit((u8*)buffer1,22,2,LittleEndian);//???? 
-	WAVE_Format.SampleRate=ReadUnit((u8*)buffer1,24,4,LittleEndian);//????
-	WAVE_Format.ByteRate=ReadUnit((u8*)buffer1,28,4,LittleEndian);//????
-	WAVE_Format.BlockAlign=ReadUnit((u8*)buffer1,32,2,LittleEndian);//????
-	WAVE_Format.BitsPerSample=ReadUnit((u8*)buffer1,34,2,LittleEndian);//??????
+  	WAVE_Format.NumChannels=ReadUnit((u8*)buffer,22,2,LittleEndian);//???? 
+	WAVE_Format.SampleRate=ReadUnit((u8*)buffer,24,4,LittleEndian);//????
+	WAVE_Format.ByteRate=ReadUnit((u8*)buffer,28,4,LittleEndian);//????
+	WAVE_Format.BlockAlign=ReadUnit((u8*)buffer,32,2,LittleEndian);//????
+	WAVE_Format.BitsPerSample=ReadUnit((u8*)buffer,34,2,LittleEndian);//??????
 	
 	if(WAVE_Format.BitsPerSample!=BITS_PER_SAMPLE_16)return 5;
 	
@@ -223,21 +223,21 @@ u8 WaveParsing(void)
 	
 	if(extraformatbytes==1)
 	{
-		temp=ReadUnit((u8*)buffer1,36,2,LittleEndian);//???????
+		temp=ReadUnit((u8*)buffer,36,2,LittleEndian);//???????
 		if(temp!=0x00)return 6;
-		temp=ReadUnit((u8*)buffer1,38,4,BigEndian);//?'fact'
+		temp=ReadUnit((u8*)buffer,38,4,BigEndian);//?'fact'
 		//if(temp!=FACT_ID)return 7;
-		temp=ReadUnit((u8*)buffer1,42,4,LittleEndian);//?Fact????
+		temp=ReadUnit((u8*)buffer,42,4,LittleEndian);//?Fact????
 		DataOffset+=10+temp;
 	}
 	
-	temp=ReadUnit((u8*)buffer1,DataOffset,4,BigEndian);//?'data'
+	temp=ReadUnit((u8*)buffer,DataOffset,4,BigEndian);//?'data'
 	
 	DataOffset+=4;
 	
 	if(temp!=DATA_ID)return 8;
 	
-	WAVE_Format.DataSize=ReadUnit((u8*)buffer1,DataOffset,4,LittleEndian);//???????
+	WAVE_Format.DataSize=ReadUnit((u8*)buffer,DataOffset,4,LittleEndian);//???????
 	
 	DataOffset+=4;
 	
@@ -265,7 +265,7 @@ void AUDIO_TransferComplete(void)
 #else
 	XferCplt=1;
 	if (WaveLen == 0) {
-		//GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
+		GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 		return;
 	}
 	
@@ -291,22 +291,10 @@ void AUDIO_TransferComplete(void)
 			flash_bytes_read(file_idx, (u8 *)buffer1, BUF_LEN);
 			file_idx += BUF_LEN;
 			buffer_switch = 1;
-		}
-		
-		
+		}		
 	}	
 #endif
 }
-
-/*
-void SPI2_IRQHandler(void)
-{
-  	if (SPI_I2S_GetFlagStatus(SPI2,SPI_I2S_FLAG_TXE)!=RESET)
-  	{     	
-    	SPI_I2S_SendData(SPI2, 0);//??????I2S 
-  	}
-}
-*/
 
 void DMA1_Channel5_IRQHandler(void)
 {    	
@@ -321,36 +309,31 @@ void DMA1_Channel5_IRQHandler(void)
 
 void wav_pre_read(void)
 {
-	u32 index = 0;
 	OS_ERR err;
-
-	flash_bytes_read(index, (u8 *)buffer1, 0x100);
 	
-	while(WaveParsing())
-		;
-	
-  	g_WaveLen = WaveLen = WAVE_Format.DataSize;
-	
-  	I2S_Freq_Config(WAVE_Format.SampleRate);
-
 	OSSemCreate(&dma_sem, "dma Sem", 0, &err);
 }
 
-void wav_play(void)
+int wav_play(int i)
 {
 	OS_ERR err;
-	u32 index = 0;
+	u32 index = i * 0x100000;
+	
+	I2S_Bus_Init();
+	
+	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_RESET);
+	
+	msleep(100);
 	
 	flash_bytes_read(index, (u8 *)buffer1, 0x100);
 	
-	while(WaveParsing())
-		;
+	if (WaveParsing(buffer1) != 0)
+		return -1;
 	
   	g_WaveLen = WaveLen = WAVE_Format.DataSize;
 	
   	I2S_Freq_Config(WAVE_Format.SampleRate);
 	
-
 	XferCplt = 0;
 	buffer_switch = 1;
 	
@@ -367,5 +350,7 @@ void wav_play(void)
 	Audio_MAL_Play((u32)buffer1, BUF_LEN);
 	
 	msleep(200);
+	
+	return 0;
 }
 #endif
