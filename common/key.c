@@ -100,18 +100,29 @@ static void read_key_from_eeprom(void)
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
+		memset(tmp_key.gen_key.ssid, 0, sizeof(gen_key.ssid));
+		memset(tmp_key.gen_key.passwd, 0, sizeof(gen_key.passwd));
+		
+		memcpy(tmp_key.gen_key.sn, "SN14578454145890", 16);
+		memcpy(tmp_key.gen_key.user_id, "0000015332457447", 16);
+		memcpy(tmp_key.gen_key.host_ip, "192168001103", 12);
+		memcpy(tmp_key.gen_key.ssid, "1103", 4);
+		memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
+		memcpy(tmp_key.gen_key.bulet, "100", 3);
+	
 	if (memcmp(tmp_key.spec_key.key, "AKey", 4) == 0) {
 		upload_spec_key((u8 *)tmp_key.spec_key.key);
 		
-	} else {		
-		//int2chars_16(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
-		
-		//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
+	} else {
 		if (key_first_use) {
-			gen_key = tmp_key.gen_key;
 			key_first_use = 0;
+			gen_key = tmp_key.gen_key;
 		} else if (memcmp(gen_key.sn, tmp_key.gen_key.sn, sizeof(gen_key.sn)) == 0)
 			gen_key = tmp_key.gen_key;
+		
+		int2chars_16(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
+		
+		//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	}
 #endif
 	
@@ -120,8 +131,10 @@ static void read_key_from_eeprom(void)
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
-	int2chars_16(tmp_key.gen_key.bulet, 0, sizeof(tmp_key.gen_key.bulet));
+	memcpy(tmp_key.gen_key.bulet, "100", 3);
+	gen_key = tmp_key.gen_key;
 	
+	int2chars_16(gen_key.bulet, 0, sizeof(gen_key.bulet));
 	//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
 	gen_key = tmp_key.gen_key;
@@ -200,6 +213,14 @@ s16 key_get_blod(void)
 {
 	s16 ret = (s16)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
 	int2chars_16(gen_key.blod_def, 0, sizeof(gen_key.blod_def));
+	
+	return ret;
+}
+
+s16 key_get_bulet(void)
+{
+	s16 ret = (s16)char2u32_16(gen_key.bulet, sizeof(gen_key.bulet));
+	int2chars_16(gen_key.bulet, 0, sizeof(gen_key.bulet));
 	
 	return ret;
 }

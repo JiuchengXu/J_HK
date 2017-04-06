@@ -2,7 +2,7 @@
 #include "libe2prom.h"
 #include "helper.h"
 
-#ifdef GUN
+#if 0
 
 #define I2C                   	I2C1
 

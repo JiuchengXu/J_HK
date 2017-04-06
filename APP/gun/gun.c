@@ -40,11 +40,9 @@ static char recv_buf[1024];
 static u16 characCode = 0x1122;
 static s8 actived;
 static u16 packageID = 0;
+static s16 local_bulet = 100;
+static char g_host[20] = "CSsub", g_host_passwd[20] = "12345678";
 	
-extern s8 get_buletLeft(void);
-extern void set_buletLeft(s8 v);
-extern void add_buletLeft(s8 v);
-extern void reduce_bulet(void);
 extern s8 trigger_handle(u16 charcode);
 extern void key_get_ip_suffix(char *s);
 extern void key_get_sn(char *s);
@@ -111,13 +109,13 @@ static int upload_status_data(void)
 	INT2CHAR(data.deviceSubType, get_deviceSubType());
 	
 	memcpy(data.deviceSN, "0987654321abcdef", sizeof(data.deviceSN));
-	INT2CHAR(data.bulletLeft, get_buletLeft());
+	INT2CHAR(data.bulletLeft, local_bulet);
 	key_get_sn(data.keySN);
 	INT2CHAR(data.characCode, characCode);
 
 	INT2CHAR(data.PowerLeft, get_power());
 	
-	upload_lcd(LCD_GUN_BULLET, get_buletLeft());
+	upload_lcd(LCD_GUN_BULLET, local_bulet);
 	msleep(20);
 	
 	return sendto_host((char *)&data, sizeof(data));
@@ -202,8 +200,9 @@ static void recv_task(void)
 static void power_status_task(void)
 {
 	while (1) {	
-		sleep(20);	
-		power_status_data();		
+		sleep(5);	
+		power_status_data();
+		printf("%s\r\n", __func__);
 	}	
 }
 	
@@ -215,6 +214,8 @@ static void net_init(void)
 	
 	// ip最后一位作为一个标识
 	key_get_ip_suffix(&host[5]);
+	
+	strcpy(g_host, host);
 	
 	sprintf(ip, "192.168.4.%d", GUN_IP & 0xff);
 	
@@ -252,6 +253,72 @@ static void net_init(void)
 		err_log("");
 	
 	ping(LCD_IP);
+}
+
+static void net_reinit(void)
+{
+	u8 i;
+	OS_ERR err;
+	char host[20] = "CSsub", host_passwd[20] = "12345678", \
+	    ip[16];
+	
+	// ip禺鄢一位胤为一俣要识
+	key_get_ip_suffix(&host[5]);
+	
+	if (strcmp(host, g_host) == 0)
+		goto out;
+	
+	OSTaskSuspend((OS_TCB *)&RecvTaskStkTCB, &err);
+	OSTaskSuspend((OS_TCB *)&HBTaskStkTCB, &err);
+	
+	actived = 0;
+	
+	sprintf(ip, "192.168.4.%d", GUN_IP & 0xff);
+	
+	if (set_auto_conn(0) < 0)
+		err_log("set_echo");
+	
+	if  (close_conn() < 0)
+		err_log("set_echo");
+
+	if (set_echo(1) < 0)
+		err_log("set_echo");
+	
+	if (set_mode(1) < 0)
+		err_log("set_mode");
+	
+	if (connect_ap(host, host_passwd, 3) < 0)
+		err_log("connect_ap");
+	
+	if (set_ip(ip) < 0)
+		err_log("set_ip");
+		
+	if (set_mux(1) < 0)
+		err_log("set_mux");
+	
+	for (i = 0; i < 4; i++)
+		udp_close(i);
+	
+	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
+		err_log("");
+	
+	if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
+		err_log("");
+	
+	ping(LCD_IP);
+		
+	OSTaskResume((OS_TCB *)&RecvTaskStkTCB, &err);
+	OSTaskResume((OS_TCB *)&HBTaskStkTCB, &err);
+		
+	while (!actived) {
+		active_request();
+		sleep(2);
+	}
+	
+	return;
+	
+out:
+	actived = 1;
 }
 
 static void start_gun_tasks(void)
@@ -294,32 +361,17 @@ s8 get_actived_state(void)
 
 static void key_insert_handle(void)
 {
-	OS_ERR err;
+	net_reinit();
 	
-	//OSTaskDel((OS_TCB *)&RecvTaskStkTCB, &err);
-	//OSTaskDel((OS_TCB *)&HBTaskStkTCB, &err);
+	ok_notice();	
 	
-	OSTaskSuspend((OS_TCB *)&RecvTaskStkTCB, &err);
-	//OSTaskSuspend((OS_TCB *)&HBTaskStkTCB, &err);
-	
-	actived = 0;
-	
-	net_init();
-
-	start_gun_tasks();
-	
-	while (!actived) {
-		active_request();
-		sleep(1);
-	}
-	
-	OSTaskResume((OS_TCB *)&RecvTaskStkTCB, &err);
-	//OSTaskResume((OS_TCB *)&HBTaskStkTCB, &err);
+	local_bulet = key_get_bulet();
+		
+	upload_status_data();
 }
 
 void main_loop(void)
 {
-	s8 bulet_bak = get_buletLeft();
 	s8 bulet_used_nr;
 	s8 i;
 	int active_retry = 30;
@@ -331,6 +383,10 @@ retry:
 	active_retry = 30;
 	
 	key_init();
+	
+	local_bulet = key_get_bulet();
+	
+	blue_led_on();
 	
 	net_init();
 					
@@ -345,8 +401,6 @@ retry:
 		goto retry;
 #endif	
 	
-	//set_buletLeft(100);
-	
 	upload_status_data();
 	
 	green_led_on();
@@ -356,18 +410,21 @@ retry:
 	//watch_dog_feed_task_init();
 	
 	while (1) {
-		#if 1
 		if (key_get_fresh_status())
-			key_insert_handle();
-		#endif
+				key_insert_handle();
 		
-		bulet_used_nr = trigger_handle(characCode);
-		
-		if (bulet_used_nr > 0) {
-			for (i = 0; i < bulet_used_nr; i++)
-				reduce_bulet();
+		if (actived) {			
+			bulet_used_nr = trigger_handle(characCode);
 			
-			upload_status_data();
+			if (bulet_used_nr > 0) {
+				for (i = 0; i < bulet_used_nr; i++)
+					local_bulet--;
+				
+				upload_status_data();
+			}
+			
+			if (local_bulet <= 0)
+				actived = 0;
 		}
 		
 		msleep(100);

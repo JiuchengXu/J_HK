@@ -300,14 +300,6 @@ static void recv_host_handler(char *buf, u16 len)
 	if (packType == ACTIVE_RESPONSE_TYPE) {
 		actived = 1;
 		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
-		switch (characCode >> 14) {
-			case TEAM_COLOR_RED:
-				clothe_led("red", 1);
-				break;
-			case TEAM_COLOR_BLUE:
-				clothe_led("green", 1);
-				break;
-		}
 		set_time(char2u32_16(data->curTime, sizeof(data->curTime)));
 	} 
 }
@@ -532,6 +524,8 @@ retry:
 	active_retry = 30;
 	
 	key_init();
+	
+	blue_led_on();
 		
 	blod_bak = blod = key_get_blod();
 	
@@ -568,19 +562,34 @@ retry:
 				blod -= 10;
 			
 			if (blod <= 0) {
+				blod = 0;
+				
+				upload_status_data();
+				
 				work_flag_dipatch_gun(STOP_WORK);
+				
 				clothe_led("all", 1);
 				
-				while (blod > 0) {
+				while (blod <= 0) {
 					if (key_get_fresh_status()) {
 						if (blod <= 0)
 							work_flag_dipatch_gun(START_WORK);
 						
-						blod += key_get_blod();			
+						blod += key_get_blod();
+
+						ok_notice();
+						
+						clothe_led("all", 0);
+						msleep(500);
+						clothe_led("all", 1);
+						msleep(500);
+						clothe_led("all", 0);
+
+						clear_receive();
 					}
-				}
 					
-				clothe_led("all", 0);
+					msleep(100);
+				}
 			}
 		}
 #if 1		

@@ -378,8 +378,13 @@ void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 
 s8 udp_close(u8 id)
 {
+	s8 ret;
 	sprintf(temp, "AT+CIPCLOSE=%d\r\n", id);
-	return exe_cmd(temp);
+	ret = exe_cmd(temp);
+	if (ret == 0 && gID > 0) 
+		gID--;
+	
+	return ret;
 }
 
 s8 set_ip(char *ip)

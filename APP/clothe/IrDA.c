@@ -28,6 +28,7 @@ static CPU_STK  TaskStk[OS_TASK_STACK_SIZE];
 static OS_TCB TaskStkTCB;
 static OS_Q queue;
 static struct mutex_lock lock;
+static OS_TMR timer[CLOTHE_RECEIVE_MODULE_NUMBER];
 
 struct  recv_info {
 	u16 charcode;
@@ -47,14 +48,12 @@ static u32 recv_offline_map;
 extern int i2c_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *ReadBuffer, u16 ReadNumber);
 extern int i2c_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData, u16 WriteNumber);
 
-#if 0
+#if 1
 int IrDA_Reads(u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadNumber)
 {
 	int ret;
 	
-	mutex_lock(&lock);
 	ret = i2c_Reads(IRDA_I2C, slave_addr, op, ReadBuffer, ReadNumber);
-	mutex_unlock(&lock);
 	
 	return ret;
 }
@@ -65,97 +64,6 @@ int IrDA_Writes(u8 slave_addr, u8 op, u8 *WriteData, u16 WriteNumber)
 }
 
 #else
-int IrDA_Reads(u8 slave_addr, u8 op, u8 *ReadBuffer, u16 ReadNumber)
-{
-	int timeout;
-	int ret = -1;
-	OS_ERR err;
-	
-	I2C_TypeDef *I2C = IRDA_I2C;
-	
-	if(ReadNumber == 0)  
-		return 0 ;
-	
-	OSSchedLock(&err);
-	
-	I2C_GenerateSTART(I2C, ENABLE);
-	timeout = 72000;
-	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
-
-	if (timeout == 0)
-		goto out;
-	
-	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Transmitter);
-	timeout = 72000;
-	while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --timeout);
-	if (timeout == 0)
-		goto out;
-	
-	I2C_SendData(I2C, op);
-	timeout = 72000;
-	
-	while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED)  && --timeout ); 
-	if (timeout == 0)
-		goto out;
-		
-	I2C_GenerateSTART(I2C, ENABLE);
-	timeout = 72000;
-	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
-	if (timeout == 0)
-		goto out;
-
-	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Receiver);
-	timeout = 72000;	
-	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)&& --timeout);
-	if (timeout == 0)
-		goto out;
-	
-	while (ReadNumber) {
-		timeout = 7200;
-		if (ReadNumber == 1) {
-			I2C_AcknowledgeConfig(I2C, DISABLE);  
-			I2C_GenerateSTOP(I2C, ENABLE); 
-		}
-
-		while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_RECEIVED) && --timeout); 
-		if (timeout == 0)
-			goto out;
-		//while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_RECEIVED)); 
-		*ReadBuffer = I2C_ReceiveData(I2C);
-		ReadBuffer++;
-		ReadNumber--;
-	}
-	
-	ret = 0;
-	
-out:	
-	I2C_AcknowledgeConfig(I2C, ENABLE);
-	OSSchedUnlock(&err);
-	
-	return ret;
-}
-
-void IrDA_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 op, u8 *WriteData, u16 WriteNumber)
-{
-	while(I2C_GetFlagStatus(I2C, I2C_FLAG_BUSY));
-
-	I2C_GenerateSTART(I2C, ENABLE);
-	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT));
-
-	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Transmitter);
-	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED));
-
-	I2C_SendData(I2C, op);
-	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
-
-	while (WriteNumber--)  {
-		I2C_SendData(I2C, *WriteData);
-		WriteData++;
-		while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
-	}
-
-	I2C_GenerateSTOP(I2C, ENABLE);
-}
 
 	
 int IrDA_cmd(int cmd, int id, u8 *buf, int len)
@@ -166,7 +74,6 @@ int IrDA_cmd(int cmd, int id, u8 *buf, int len)
 	return 0;
 }
 #endif
-
 
 int IrDA_led(int id, int color, int on)
 {
@@ -187,9 +94,18 @@ int IrDA_led(int id, int color, int on)
 	return ret;
 }
 
+void clothe_led_off(void *p_tmr, void *p_arg)
+{
+	int i = (int)p_arg;
+	
+	IrDA_led(i, 0xf0, 0);
+}
+
 int clothe_led_on_then_off(int id, int color, int time)
 {
 	OS_ERR err;
+
+#if 0
 	struct led_ctl *tmp;
 	
 	if (recv_offline_map & (1 << id))
@@ -207,11 +123,49 @@ int clothe_led_on_then_off(int id, int color, int time)
 	tmp->time = time;
 	
 	OSQPost(&queue, (void *)tmp, sizeof(*tmp), OS_OPT_POST_FIFO, &err);
-
+#endif
+	
+	if (OSTmrStop(&timer[id], OS_OPT_TMR_NONE, NULL, &err) != DEF_TRUE)
+		return -1;
+	
+	printf("%d %d\r\n", id, err);
+	
+	//if (err != OS_ERR_NONE)
+//		return -1;
+		
+	IrDA_led(id, color, 1);
+	
+	OSTmrStart(&timer[id], &err);
+	
 	if (err == OS_ERR_NONE)
 		return 0;
 
 	return -1;
+}
+
+void clear_receive(void)
+{
+	int i;
+	u8 status;
+	int ret = 0;
+	struct recv_info info;
+	
+	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
+		while (ret == 0) {
+			if (IrDA_Reads((RECV_MOD_SA_BASE + i) << 1, I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) == 0) {
+			
+				status = info.status;	
+				
+				switch (status) {
+					case 0:					
+						break;
+					case 1:
+						ret = 1;
+						break;
+				}
+			} else
+				break;
+		}
 }
 
 void clothe_led(char *s, int on)
@@ -235,8 +189,6 @@ void clothe_led(char *s, int on)
 	
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
 		IrDA_led(i, color, on);
-
-	team = color;
 }
 
 int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
@@ -289,17 +241,17 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 				//打到a边
 				*charcode = temp_charcode[0];
 				*head_shoot = 0;
-				clothe_led_on_then_off(0, team, 2);
+				clothe_led_on_then_off(0, 0xf0, 2);
 			} else if (temp_charcode[0] !=0 && temp_charcode[2] != 0) {
 				//打到中间
 				*charcode = temp_charcode[1];
 				*head_shoot = 0;
-				clothe_led_on_then_off(1, team, 2);
+				clothe_led_on_then_off(1, 0xf0, 2);
 			} else if (temp_charcode[0] ==0 && temp_charcode[2] != 0) {
 				//打到b边
 				*charcode = temp_charcode[2];
 				*head_shoot = 0;
-				clothe_led_on_then_off(2, team, 2);
+				clothe_led_on_then_off(2, 0xf0, 2);
 			} else {
 				//打到中间
 			}		
@@ -308,31 +260,31 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 				//打到a边
 				*charcode = temp_charcode[0];
 				*head_shoot = 0;
-				clothe_led_on_then_off(0, team, 2);
+				clothe_led_on_then_off(0, 0xf0, 2);
 				
 			} else if (temp_charcode[0] ==0 && temp_charcode[2] != 0) {
 				//打到b边
 				
 				*charcode = temp_charcode[2];
 				*head_shoot = 0;
-				clothe_led_on_then_off(2, team, 2);
+				clothe_led_on_then_off(2, 0xf0, 2);
 			}
 		} else {			
 			if (temp_charcode[3] != 0 && temp_charcode[4] == 0) {
 				//打到a边
 				*charcode = temp_charcode[3];
 				*head_shoot = 0;
-				clothe_led_on_then_off(3, team, 2);
+				clothe_led_on_then_off(3, 0xf0, 2);
 			} else if (temp_charcode[3] ==0 && temp_charcode[4] != 0) {
 				//打到b边
 				*charcode = temp_charcode[4];
 				*head_shoot = 0;
-				clothe_led_on_then_off(4, team, 2);
+				clothe_led_on_then_off(4, 0xf0, 2);
 			} else {
 				//打到a边
 				*charcode = temp_charcode[3];
 				*head_shoot = 0;
-				clothe_led_on_then_off(3, team, 2);
+				clothe_led_on_then_off(3, 0xf0, 2);
 			}
 		}
 	} else if (shoot_cnt > 0) { //打到衣服和头
@@ -340,17 +292,17 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 			//前头
 			*charcode = temp_charcode[6];
 			*head_shoot = 1;
-			clothe_led_on_then_off(6, team, 2);
+			clothe_led_on_then_off(6, 0xf0, 2);
 		} else if (temp_charcode[5] != 0) {
 			//后头
 			*charcode = temp_charcode[5];
 			*head_shoot = 1;
-			clothe_led_on_then_off(5, team, 2);
+			clothe_led_on_then_off(5, 0xf0, 2);
 		} else {
 			//上头
 			*charcode = temp_charcode[7];
 			*head_shoot = 1;
-			clothe_led_on_then_off(7, team, 2);
+			clothe_led_on_then_off(7, 0xf0, 2);
 		}	
 	}
 		
@@ -409,6 +361,8 @@ void IrDA_init(void)
 		IrDA_led(i, 0xf0, 0);
 	}
 	
+	sleep(1);
+	
 #if 0	
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
 		IrDA_led(i, 0x80, 1);
@@ -419,10 +373,13 @@ void IrDA_init(void)
 		IrDA_led(i, 0x00, 0);
 #endif
 	
+	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
+		OSTmrCreate(&timer[i], "led timer", 20, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)clothe_led_off, (void *)i, &err);
+	
 	OSQCreate(&queue, "led queue", 1000, &err);
 	
 	mutex_init(&lock);
-	
+#if 0	
     OSTaskCreate((OS_TCB *)&TaskStkTCB, 
             (CPU_CHAR *)"led control", 
             (OS_TASK_PTR)clothe_led_ctrl, 
@@ -439,7 +396,7 @@ void IrDA_init(void)
 
 	while (!started_flag)
 		msleep(100);
-
+#endif
 #if 0	
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
 		clothe_led_on_then_off(i, 0x80, 1);
@@ -447,6 +404,5 @@ void IrDA_init(void)
 	while (1)
 		sleep(1);
 #endif
-	
 }	
 #endif

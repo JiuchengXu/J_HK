@@ -1,6 +1,7 @@
 #ifndef __BULET_H__
 #define __BULET_H__
 
+#if 0
 s8 bulet_Read(void);
 
 void bulet_Write(s8 bulet);
@@ -12,5 +13,5 @@ void set_buletLeft(s8 v);
 void add_buletLeft(s8 v);
 
 void reduce_bulet(void);
-	
+#endif	
 #endif
