@@ -13,6 +13,62 @@
 #define CPU_BAT_ADC_CHAN	ADC_Channel_10
 #endif
 
+#define OS_TASK_STACK_SIZE 256
+
+static CPU_STK  TaskStk[OS_TASK_STACK_SIZE];
+static OS_TCB TaskStkTCB;
+
+static u16 get_adc_val(void)
+{
+	/* Start ADC1 Software Conversion */ 
+	ADC_SoftwareStartConvCmd(ADC1, ENABLE);			
+ 
+	while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC ))	
+		msleep(100);
+	
+	return ADC_GetConversionValue(ADC1);			
+}
+
+s8 get_power(void)
+{
+	u16 adc_v = get_adc_val();
+	float f_adc_v = (float)adc_v / 4096 * 3.3 * 2;
+	int ret = (int)((f_adc_v - 3) * 100) ;
+		
+	return (s8) ret;
+}
+
+void power_monitor_task(void)
+{
+	while (1) {
+		if (get_power() < 5) {
+			beep_on();
+			sleep(2);
+			beep_off();
+			sleep(1);
+		}		
+	}
+}
+
+void power_monitor(void)
+{
+	OS_ERR err;
+	
+    OSTaskCreate((OS_TCB *)&TaskStkTCB, 
+            (CPU_CHAR *)"power monitor", 
+            (OS_TASK_PTR)power_monitor_task, 
+            (void * )0, 
+            (OS_PRIO)8, 
+            (CPU_STK *)&TaskStk[0], 
+            (CPU_STK_SIZE)OS_TASK_STACK_SIZE/10, 
+            (CPU_STK_SIZE)OS_TASK_STACK_SIZE, 
+            (OS_MSG_QTY) 0, 
+            (OS_TICK) 0, 
+            (void *)0,
+            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+            (OS_ERR*)&err);		
+}
+
 void adc_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -52,24 +108,6 @@ void adc_init(void)
 	
 	/* Check the end of ADC1 calibration */
 	while(ADC_GetCalibrationStatus(ADC1));		
-}
-
-static u16 get_adc_val(void)
-{
-	/* Start ADC1 Software Conversion */ 
-	ADC_SoftwareStartConvCmd(ADC1, ENABLE);			
- 
-	while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC ))	
-		msleep(100);
 	
-	return ADC_GetConversionValue(ADC1);			
-}
-
-s8 get_power(void)
-{
-	u16 adc_v = get_adc_val();
-	float f_adc_v = (float)adc_v / 4096 * 3.3 * 2;
-	int ret = (int)((f_adc_v - 3) * 100) ;
-		
-	return (s8) ret;
+	power_monitor();
 }

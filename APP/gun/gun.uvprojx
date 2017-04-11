@@ -430,11 +430,6 @@
               <FilePath>.\38k.c</FilePath>
             </File>
             <File>
-              <FileName>bulet_box.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\bulet_box.c</FilePath>
-            </File>
-            <File>
               <FileName>gun.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\gun.c</FilePath>

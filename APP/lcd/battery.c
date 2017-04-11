@@ -69,12 +69,12 @@ void clothe_battery_show(int p)
 {
 	float v;
 			
-	battery_show_at(p, 400, 4);	
+	battery_show_at(p, 140, 4);	
 }
 
 void gun_battery_show(int p)
 {
 	float v;
 			
-	battery_show_at(p, 350, 4);	
+	battery_show_at(p, 180, 4);	
 }

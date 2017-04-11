@@ -58,7 +58,7 @@ static CPU_STK  HBTaskStk[OS_HB_TASK_STACK_SIZE];
 static OS_TCB HBTaskStkTCB;
 
 static char recv_buf[1024];                                                    
-static u16 characCode;
+static u16 characCode = 0xffff;
 static s8 actived;
 static volatile s16 blod, bulet;
 static u16 packageID = 0;
@@ -101,23 +101,7 @@ static s8 sendto_lcd(char *buf, u16 len)
 
 static void set_attack_info(u16 *charcode, s8 *head_shoot, u32 time)
 {
-	int i = 0;
-#if 0	
-	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER && charcode[i] != 0; i++) {
-		INT2CHAR(att_info.info.characCode[att_info.cnt], charcode[i]);
-		if (head_shoot[i] == 1)
-			INT2CHAR(att_info.info.ifHeadShot[att_info.cnt], 1);
-		else
-			INT2CHAR(att_info.info.ifHeadShot[att_info.cnt], 0);
-		
-		INT2CHAR(att_info.info.attachTime[att_info.cnt], time);
-		
-		att_info.cnt++;
-		
-		if (att_info.cnt == 10)
-			att_info.cnt = 0;
-	}
-#endif
+	int i = 0, j;
 	
 	INT2CHAR(att_info.info.characCode[att_info.cnt], charcode[i]);
 	
@@ -253,12 +237,16 @@ static void recv_gun_handler(char *buf, u16 len)
 		struct GunActiveAskData ask_data;
 		u16 tmp; 
 		
+		if (characCode == 0xffff) //无效的
+			return;
+		
 		INT2CHAR(ask_data.transMod, 0);
 		INT2CHAR(ask_data.packTye, ACTIVE_RESPONSE_TYPE);
 		INT2CHAR(ask_data.packageID, packageID++);
 		tmp = characCode + 0x100;
 		INT2CHAR(ask_data.characCode, tmp);
 		sendto_gun((void *)&ask_data, sizeof(ask_data));
+		printf("#to gun%04x\r\n", tmp);
 	} else {
 		if (packTye == GUN_STATUS_TYPE) {
 			int value = CHAR2INT(((struct GunStatusData *)data)->bulletLeft);
@@ -301,6 +289,8 @@ static void recv_host_handler(char *buf, u16 len)
 		actived = 1;
 		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
 		set_time(char2u32_16(data->curTime, sizeof(data->curTime)));
+		
+		printf("#from host%04x\r\n", characCode);	
 	} 
 }
 
@@ -399,7 +389,7 @@ static void recv_task(void)
 static void power_status_task(void)
 {	
 	while (1) {	
-		sleep(10);	
+		sleep(5);	
 		power_status_data();		
 	}
 }
@@ -448,6 +438,7 @@ static void net_init(void)
 	key_get_ip_suffix(&sid[5]);
 	
 	key_get_ip_suffix(&ip[10]);
+	
 	HOST_IP = key_get_host_ip();
 	
 	get_wifi_info(host, host_passwd);
@@ -463,9 +454,15 @@ static void net_init(void)
 
 	if (set_mode(3) < 0)
 		err_log("set_mode");
+	
+	if (set_dhcp() < 0)
+		err_log("set_dhcp");
 		
 	if (connect_ap(host, host_passwd, 3) < 0)
 		err_log("connect_ap");
+	
+	//if (set_ip(ip) < 0)
+	//	err_log("set_ip");
 		
 	if (set_ap(sid, passwd) < 0)
 		err_log("set_ap");
@@ -514,7 +511,7 @@ void main_loop(void)
 	u32 charcode;
 	s16 blod_bak;
 	int active_retry = 30;
-	
+	int ret;
 	memset(&att_info, '0', sizeof(att_info));
 	att_info.cnt = 0;
 	
@@ -552,8 +549,9 @@ retry:
 	
 	//watch_dog_feed_task_init();
 	
-	while (1) {						
-		if (irda_get_shoot_info(g_characode, g_head_shoot) != 0 && blod > 0) {
+	while (1) {	
+		recheck:		
+		if ((ret = irda_get_shoot_info(g_characode, g_head_shoot)) >= 0 && blod > 0) {
 			set_attack_info(g_characode, g_head_shoot, get_time(NULL, NULL, NULL));
 			
 			if (g_head_shoot[0] == 1)
@@ -568,8 +566,6 @@ retry:
 				
 				work_flag_dipatch_gun(STOP_WORK);
 				
-				clothe_led("all", 1);
-				
 				while (blod <= 0) {
 					if (key_get_fresh_status()) {
 						if (blod <= 0)
@@ -580,17 +576,25 @@ retry:
 						ok_notice();
 						
 						clothe_led("all", 0);
-						msleep(500);
+						msleep(200);
 						clothe_led("all", 1);
-						msleep(500);
+						msleep(200);
 						clothe_led("all", 0);
 
 						clear_receive();
+						
+						break;
 					}
 					
-					msleep(100);
+					clothe_led("all", 1);
+					
+					msleep(200);
 				}
-			}
+			} else
+				clothe_led_on_then_off(ret, 0xf0, 1);
+			
+			if (ret > 0)
+				goto recheck;
 		}
 #if 1		
 		if (key_get_fresh_status()) {
@@ -605,7 +609,7 @@ retry:
 		
 		blod_bak = blod;
 #endif		
-		msleep(100);
+		msleep(150);
 	}	
 }
 #endif

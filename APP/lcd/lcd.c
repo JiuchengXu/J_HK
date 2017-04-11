@@ -49,11 +49,6 @@ static s8 actived;
 
 static u16 packageID = 0;
 static s16 life_left = 0, bulet_left = 0, clothe_power = 0, gun_power = 0;
-	
-extern s8 get_buletLeft(void);
-extern void set_buletLeft(s8 v);
-extern void add_buletLeft(s8 v);
-extern void reduce_bulet(void);
 
 extern void lcd_display_line_16bpp(int x, int y, u16 * p, int xsize, int ysize);
 extern int spi_flash_get_data(void * p, const U8 ** ppData, unsigned NumBytes, U32 Off);
@@ -229,9 +224,14 @@ static void start_gun_tasks(void)
             (OS_ERR*)&err);	
 }
 
-static volatile int prog_val = 0;
+static volatile int prog_val = 1;
 
-static void net_init(void)
+static void key_insert_handle(void)
+{
+	NVIC_SystemReset();
+}
+
+static int net_init(void)
 {
 	u8 i;
 		
@@ -263,8 +263,10 @@ static void net_init(void)
 	
 	prog_val = 40;
 			
-	if (connect_ap(host, host_passwd, 3) < 0)
+	if (connect_ap(host, host_passwd, 3) < 0) {
 		err_log("connect_ap");
+		return -1;
+	}
 	
 	prog_val = 50;
 	
@@ -297,6 +299,8 @@ static void net_init(void)
 	}
 	
 	prog_val = 120;
+	
+	return 0;
 }
 
 u8 blod[100], bulet[100];
@@ -357,7 +361,7 @@ void main_loop(void)
 	int bulet_left_bak, life_left_bak;
 	int need_reflash = 0;
 	int keyboard_bak = 1;
-	int tmp_progress = 0;
+	int tmp_progress = 1;
 	int active_retry = 30;
 	
 	GUI_Init();
@@ -397,7 +401,7 @@ retry:
 		if (tmp_progress == prog_val) {
 			active_retry--;			
 			if (active_retry == 0)
-				goto retry;
+				NVIC_SystemReset();
 		} else {
 			tmp_progress += 2;
 			ProgBarShow(tmp_progress);					
@@ -469,6 +473,9 @@ retry:
 				
 				break;
 		}
+		
+		if (key_get_fresh_status())
+			key_insert_handle();
 		
 		msleep(100);
 	}

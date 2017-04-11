@@ -6,7 +6,7 @@
 
 #ifdef GUN
 
-DMA_InitTypeDef DMA_InitStructure; 
+static DMA_InitTypeDef DMA_InitStructure; 
 static u32 file_idx;
 static u16 *CurrentPos;
 static OS_SEM dma_sem;
@@ -19,6 +19,14 @@ __IO int WaveLen, g_WaveLen;
 __IO u32 XferCplt;
 __IO u32 DataOffset;
 __IO u32 WaveCounter;
+
+struct wav_file {
+	u32 file_size;
+	u32 data_offset;
+	u32 sample_rate;
+};
+
+static struct wav_file wav_file[10];
 
 u8 buffer_switch;
 
@@ -131,7 +139,6 @@ static void I2S_GPIO_Config(void)
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 	
 	GPIO_ResetBits(GPIOC, GPIO_Pin_12);
-	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 }
 
 /**
@@ -172,13 +179,14 @@ void I2S_Bus_Init(void)
 	
 	DMA_I2S_Configuration(0, 0xFFFE);
 	
-	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
+	//GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 }
 
 void Audio_MAL_Play(u32 Addr, u32 Size)
 {	
   	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)Addr;
   	DMA_InitStructure.DMA_BufferSize = (uint32_t)Size >> 1; // Size/2
+	//DMA_InitStructure.DMA_BufferSize = (uint32_t)Size; 
   	DMA_Init(DMA1_Channel5, &DMA_InitStructure);
   	DMA_Cmd(DMA1_Channel5, ENABLE); 
 	
@@ -186,65 +194,7 @@ void Audio_MAL_Play(u32 Addr, u32 Size)
 		I2S_Cmd(SPI2, ENABLE);
 }
 
-u8 WaveParsing(u16 *buffer)
-{
-  	u32 temp=0x00;
-  	u32 extraformatbytes=0;
-
-  	temp=ReadUnit((u8*)buffer,0,4,BigEndian);//?'RIFF'
-  	if(temp!=CHUNK_ID)return 1;
-	
-  	WAVE_Format.RIFFchunksize=ReadUnit((u8*)buffer,4,4,LittleEndian);//?????
-	
-  	temp=ReadUnit((u8*)buffer,8,4,BigEndian);//?'WAVE'
-  	if(temp!=FILE_FORMAT)return 2;
-	
-  	temp=ReadUnit((u8*)buffer,12,4,BigEndian);//?'fmt '
-	
-  	if(temp!=FORMAT_ID)return 3;
-	
-  	temp=ReadUnit((u8*)buffer,16,4,LittleEndian);//?'fmt'????
-	
-  	if(temp!=0x10)extraformatbytes=1;
-	
-  	WAVE_Format.FormatTag=ReadUnit((u8*)buffer,20,2,LittleEndian);//?????
-	
-  	if(WAVE_Format.FormatTag!=WAVE_FORMAT_PCM)return 4;  
-	
-  	WAVE_Format.NumChannels=ReadUnit((u8*)buffer,22,2,LittleEndian);//???? 
-	WAVE_Format.SampleRate=ReadUnit((u8*)buffer,24,4,LittleEndian);//????
-	WAVE_Format.ByteRate=ReadUnit((u8*)buffer,28,4,LittleEndian);//????
-	WAVE_Format.BlockAlign=ReadUnit((u8*)buffer,32,2,LittleEndian);//????
-	WAVE_Format.BitsPerSample=ReadUnit((u8*)buffer,34,2,LittleEndian);//??????
-	
-	if(WAVE_Format.BitsPerSample!=BITS_PER_SAMPLE_16)return 5;
-	
-	DataOffset=36;
-	
-	if(extraformatbytes==1)
-	{
-		temp=ReadUnit((u8*)buffer,36,2,LittleEndian);//???????
-		if(temp!=0x00)return 6;
-		temp=ReadUnit((u8*)buffer,38,4,BigEndian);//?'fact'
-		//if(temp!=FACT_ID)return 7;
-		temp=ReadUnit((u8*)buffer,42,4,LittleEndian);//?Fact????
-		DataOffset+=10+temp;
-	}
-	
-	temp=ReadUnit((u8*)buffer,DataOffset,4,BigEndian);//?'data'
-	
-	DataOffset+=4;
-	
-	if(temp!=DATA_ID)return 8;
-	
-	WAVE_Format.DataSize=ReadUnit((u8*)buffer,DataOffset,4,LittleEndian);//???????
-	
-	DataOffset+=4;
-	
-	return 0;
-}
-
-u32 ReadUnit(u8 *buffer,u8 idx,u8 NbrOfBytes,Endianness BytesFormat)
+u32 ReadUnit(u8 *buffer, u8 idx, u8 NbrOfBytes, Endianness BytesFormat)
 {
   	u32 index=0;
   	u32 temp=0;
@@ -252,6 +202,70 @@ u32 ReadUnit(u8 *buffer,u8 idx,u8 NbrOfBytes,Endianness BytesFormat)
   	for(index=0;index<NbrOfBytes;index++)temp|=buffer[idx+index]<<(index*8);
   	if (BytesFormat == BigEndian)temp= __REV(temp);
 		return temp;
+}
+
+u8 WaveParsing(u16 *buffer)
+{
+  	u32 temp = 0x00;
+  	u32 extraformatbytes = 0;
+
+  	temp = ReadUnit((u8*)buffer, 0, 4, BigEndian);//?'RIFF'
+  	if (temp != CHUNK_ID)
+		return 1;
+	
+  	WAVE_Format.RIFFchunksize = ReadUnit((u8*)buffer, 4, 4, LittleEndian);//?????
+	
+  	temp = ReadUnit((u8*)buffer, 8, 4, BigEndian);//?'WAVE'
+  	if (temp != FILE_FORMAT)
+		return 2;
+	
+  	temp = ReadUnit((u8*)buffer, 12, 4, BigEndian);//?'fmt '
+  	if (temp != FORMAT_ID)
+		return 3;
+	
+  	temp = ReadUnit((u8*)buffer, 16, 4, LittleEndian);//?'fmt'????	
+  	if (temp != 0x10)
+		extraformatbytes = 1;
+	
+  	WAVE_Format.FormatTag = ReadUnit((u8*)buffer, 20, 2, LittleEndian);//?????
+	
+  	if (WAVE_Format.FormatTag != WAVE_FORMAT_PCM)
+		return 4;  
+	
+  	WAVE_Format.NumChannels = ReadUnit((u8*)buffer, 22, 2, LittleEndian);//???? 
+	WAVE_Format.SampleRate = ReadUnit((u8*)buffer, 24, 4, LittleEndian);//????
+	WAVE_Format.ByteRate = ReadUnit((u8*)buffer, 28, 4, LittleEndian);//????
+	WAVE_Format.BlockAlign = ReadUnit((u8*)buffer, 32, 2, LittleEndian);//????
+	WAVE_Format.BitsPerSample = ReadUnit((u8*)buffer, 34, 2, LittleEndian);//??????
+	
+	if (WAVE_Format.BitsPerSample != BITS_PER_SAMPLE_16)
+		return 5;
+	
+	DataOffset = 36;
+	
+	if (extraformatbytes == 1) {
+		temp = ReadUnit((u8*)buffer, 36, 2, LittleEndian);//???????
+		if (temp != 0x00)
+			return 6;
+		
+		temp = ReadUnit((u8*)buffer, 38, 4, BigEndian);//?'fact'
+		//if(temp!=FACT_ID)return 7;
+		temp = ReadUnit((u8*)buffer, 42, 4, LittleEndian);//?Fact????
+		DataOffset += 10 + temp;
+	}
+	
+	temp = ReadUnit((u8*)buffer, DataOffset, 4, BigEndian);//?'data'
+	
+	DataOffset += 4;
+	
+	if (temp != DATA_ID)
+		return 8;
+	
+	WAVE_Format.DataSize = ReadUnit((u8*)buffer, DataOffset, 4, LittleEndian);//???????
+	
+	DataOffset += 4;
+	
+	return 0;
 }
 
 void AUDIO_TransferComplete(void)
@@ -265,7 +279,7 @@ void AUDIO_TransferComplete(void)
 #else
 	XferCplt=1;
 	if (WaveLen == 0) {
-		GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
+		//GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_SET);
 		return;
 	}
 	
@@ -309,39 +323,42 @@ void DMA1_Channel5_IRQHandler(void)
 
 void wav_pre_read(void)
 {
-	OS_ERR err;
+	int i;
+	u32 index = 0x80000;
 	
-	OSSemCreate(&dma_sem, "dma Sem", 0, &err);
+	for (i = 0; i < 5; i++) {		
+		flash_bytes_read(index * i, (u8 *)buffer1, 0x100);
+		
+		if (WaveParsing(buffer1) != 0)
+			continue;
+		
+		WaveLen = WAVE_Format.DataSize;
+		
+		wav_file[i].data_offset = DataOffset + i * index;
+		wav_file[i].file_size = WAVE_Format.DataSize;
+		wav_file[i].sample_rate = WAVE_Format.SampleRate;
+	}
 }
 
 int wav_play(int i)
 {
-	OS_ERR err;
-	u32 index = i * 0x100000;
-	
 	I2S_Bus_Init();
 	
-	GPIO_WriteBit(GPIOC, GPIO_Pin_12, Bit_RESET);
+	//msleep(100);
 	
-	msleep(100);
+  	WaveLen = wav_file[i].file_size;
 	
-	flash_bytes_read(index, (u8 *)buffer1, 0x100);
-	
-	if (WaveParsing(buffer1) != 0)
-		return -1;
-	
-  	g_WaveLen = WaveLen = WAVE_Format.DataSize;
-	
-  	I2S_Freq_Config(WAVE_Format.SampleRate);
+  	I2S_Freq_Config(wav_file[i].sample_rate);
 	
 	XferCplt = 0;
 	buffer_switch = 1;
 	
-	file_idx = DataOffset;
-	WaveLen = g_WaveLen;
+	file_idx = wav_file[i].data_offset;
+	WaveLen = wav_file[i].file_size;
 	
 	flash_bytes_read(file_idx, (u8 *)buffer1, BUF_LEN);
 	file_idx += BUF_LEN;
+	
 	flash_bytes_read(file_idx, (u8 *)buffer2, BUF_LEN);
 	file_idx += BUF_LEN;
 	

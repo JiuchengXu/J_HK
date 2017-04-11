@@ -533,33 +533,6 @@ void upiterm_show(struct iterm_info *info)
 	
 	mutex_unlock(&lock);	
 }
-#if 0
-static void Draw(void *data)
-{
-	GUI_AUTODEV_INFO *pAutoDevInfo = data;
-
-	if (pAutoDevInfo->DrawFixed) {
-		GUI_SetColor(GUI_BLACK);	
-		GUI_FillRect(0, 0, 480, 20);		
-	}
-	
-	battery_show(20);
-	clock_show();	
-}
-
-void upiterm_show1(void)
-{
-	GUI_AUTODEV AutoDev;
-	GUI_AUTODEV_INFO AutoDevInfo;
-	
-	GUI_MEMDEV_CreateAuto(&AutoDev);
-	
-	GUI_MEMDEV_DrawAuto(&AutoDev, /* Use GUI_AUTODEV-object for drawing */
-							&AutoDevInfo,
-							&Draw,
-							&AutoDevInfo);
-}
-#endif
 
 void ProgBarInit(void) 
 {

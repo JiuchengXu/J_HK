@@ -99,17 +99,17 @@ static void read_key_from_eeprom(void)
 	union key tmp_key;
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
-	
+#if 0	
 		memset(tmp_key.gen_key.ssid, 0, sizeof(gen_key.ssid));
 		memset(tmp_key.gen_key.passwd, 0, sizeof(gen_key.passwd));
 		
 		memcpy(tmp_key.gen_key.sn, "SN14578454145890", 16);
 		memcpy(tmp_key.gen_key.user_id, "0000015332457447", 16);
-		memcpy(tmp_key.gen_key.host_ip, "192168001103", 12);
+		memcpy(tmp_key.gen_key.host_ip, "192168001105", 12);
 		memcpy(tmp_key.gen_key.ssid, "1103", 4);
 		memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
-		memcpy(tmp_key.gen_key.bulet, "100", 3);
-	
+		memcpy(tmp_key.gen_key.bulet, "999", 3);
+#endif	
 	if (memcmp(tmp_key.spec_key.key, "AKey", 4) == 0) {
 		upload_spec_key((u8 *)tmp_key.spec_key.key);
 		
@@ -131,7 +131,7 @@ static void read_key_from_eeprom(void)
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
-	memcpy(tmp_key.gen_key.bulet, "100", 3);
+	//memcpy(tmp_key.gen_key.bulet, "100", 3);
 	gen_key = tmp_key.gen_key;
 	
 	int2chars_16(gen_key.bulet, 0, sizeof(gen_key.bulet));
@@ -147,10 +147,9 @@ static void read_key_from_eeprom(void)
 #endif
 }
 
-static s8 key_get_gpio(void)
+static inline s8 key_get_gpio(void)
 {	
 	return GPIO_ReadInputDataBit(KEY_INT_GPIO, KEY_INT_GPIO_PIN) == Bit_RESET;
-	//return 1;
 }
 
 static void key_state_machine_task(void)

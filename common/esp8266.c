@@ -108,9 +108,9 @@ static s8 wait_for_return(void)
 
 static s8 exe_cmd(char *cmd)
 {
-	int retry = 5;
+	int retry = 2;
 
-	while (retry--) {
+	while (--retry) {
 		bus_send_string(cmd);
 		if (wait_for_return() == 0)
 			return 0;
@@ -169,6 +169,12 @@ s8 set_RF_power(s8 v)
 s8 set_ap(char *sid, char *passwd)
 {
 	sprintf(temp, "AT+CWSAP=\"%s\",\"%s\",5,3,4\r\n", sid, passwd);
+	return exe_cmd(temp);
+}
+
+s8 set_dhcp(void)
+{
+	sprintf(temp, "AT+CWDHCP=1,1\r\n");
 	return exe_cmd(temp);
 }
 

@@ -10,8 +10,8 @@ struct iterm_info {
 	u8 gun_pwr;
 	u8 lcd_pwr;
 	
-	u8 main_bulet;
-	u8 sub_bulet;	
+	u16 main_bulet;
+	u16 sub_bulet;	
 };
 
 struct statistic_info {

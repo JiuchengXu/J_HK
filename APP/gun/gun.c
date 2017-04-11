@@ -43,7 +43,7 @@ static u16 packageID = 0;
 static s16 local_bulet = 100;
 static char g_host[20] = "CSsub", g_host_passwd[20] = "12345678";
 	
-extern s8 trigger_handle(u16 charcode);
+extern s8 trigger_handle(u16 charcode, int);
 extern void key_get_ip_suffix(char *s);
 extern void key_get_sn(char *s);
 extern s8 key_get_fresh_status(void);
@@ -202,15 +202,15 @@ static void power_status_task(void)
 	while (1) {	
 		sleep(5);	
 		power_status_data();
-		printf("%s\r\n", __func__);
 	}	
 }
 	
-static void net_init(void)
+static int net_init(void)
 {
 	u8 i;
 	char host[20] = "CSsub", host_passwd[20] = "12345678", \
 	    ip[16];
+	int ret = -1;
 	
 	// ip最后一位作为一个标识
 	key_get_ip_suffix(&host[5]);
@@ -219,26 +219,40 @@ static void net_init(void)
 	
 	sprintf(ip, "192.168.4.%d", GUN_IP & 0xff);
 	
-	if (set_auto_conn(0) < 0)
+	if (set_auto_conn(0) < 0) {
 		err_log("set_echo");
+		return -1;
+	}
 	
-	if  (close_conn() < 0)
+	if  (close_conn() < 0) {
 		err_log("set_echo");
+		return -1;
+	}
 
-	if (set_echo(1) < 0)
+	if (set_echo(1) < 0) {
 		err_log("set_echo");
+		return -1;
+	}
 	
-	if (set_mode(1) < 0)
+	if (set_mode(1) < 0) {
 		err_log("set_mode");
+		return -1;
+	}
 	
-	if (connect_ap(host, host_passwd, 3) < 0)
+	if (connect_ap(host, host_passwd, 3) < 0) {
 		err_log("connect_ap");
+		return -1;
+	}
 	
-	if (set_ip(ip) < 0)
+	if (set_ip(ip) < 0) {
 		err_log("set_ip");
+		return -1;
+	}
 		
-	if (set_mux(1) < 0)
+	if (set_mux(1) < 0) {
 		err_log("set_mux");
+		return -1;
+	}
 	
 	for (i = 0; i < 4; i++)
 		udp_close(i);
@@ -253,9 +267,11 @@ static void net_init(void)
 		err_log("");
 	
 	ping(LCD_IP);
+	
+	return 0;
 }
 
-static void net_reinit(void)
+static int net_reinit(void)
 {
 	u8 i;
 	OS_ERR err;
@@ -287,8 +303,10 @@ static void net_reinit(void)
 	if (set_mode(1) < 0)
 		err_log("set_mode");
 	
-	if (connect_ap(host, host_passwd, 3) < 0)
+	if (connect_ap(host, host_passwd, 3) < 0) {
 		err_log("connect_ap");
+		return -1;
+	}
 	
 	if (set_ip(ip) < 0)
 		err_log("set_ip");
@@ -315,10 +333,10 @@ static void net_reinit(void)
 		sleep(2);
 	}
 	
-	return;
-	
 out:
 	actived = 1;
+	
+	return 0;
 }
 
 static void start_gun_tasks(void)
@@ -361,11 +379,12 @@ s8 get_actived_state(void)
 
 static void key_insert_handle(void)
 {
-	net_reinit();
+	if (net_reinit() < 0)
+		NVIC_SystemReset();
 	
 	ok_notice();	
 	
-	local_bulet = key_get_bulet();
+	local_bulet += key_get_bulet();
 		
 	upload_status_data();
 }
@@ -375,6 +394,7 @@ void main_loop(void)
 	s8 bulet_used_nr;
 	s8 i;
 	int active_retry = 30;
+	s8 bulet_one_bolt = 0;
 	
 	blue_led_on();	
 	
@@ -388,7 +408,8 @@ retry:
 	
 	blue_led_on();
 	
-	net_init();
+	if (net_init() < 0)
+		goto retry;
 					
 	start_gun_tasks();
 	
@@ -403,31 +424,163 @@ retry:
 	
 	upload_status_data();
 	
-	green_led_on();
-	
 	ok_notice();
 	
 	//watch_dog_feed_task_init();
 	
 	while (1) {
+		s8 mode, status = 0;
+		
 		if (key_get_fresh_status())
 				key_insert_handle();
 		
-		if (actived) {			
-			bulet_used_nr = trigger_handle(characCode);
-			
-			if (bulet_used_nr > 0) {
-				for (i = 0; i < bulet_used_nr; i++)
-					local_bulet--;
+		if (actived) {	
+			if (check_pull_bolt() > 0) {
+				wav_play(1);
 				
-				upload_status_data();
+				msleep(100);
+				
+				if (bulet_one_bolt > 0 && (30 - bulet_one_bolt) > local_bulet)
+					bulet_one_bolt += local_bulet;
+				else
+					bulet_one_bolt = 30;
 			}
 			
-			if (local_bulet <= 0)
-				actived = 0;
-		}
+			mode = get_mode();
+			
+			if (is_single_mode(mode) && bulet_one_bolt > 0) {
+				switch (trigger_get_status()) {
+					case 1 :
+						if (status == 0) {
+							wav_play(0);	
+							send_charcode(characCode);
+							
+							status = 1;
+							
+							bulet_one_bolt--;
+							local_bulet--;
+							
+							upload_status_data();
+							
+							msleep(500);
+						}
+						break;
+					case 0 :
+						if (status == 1)
+							status =  0;
+						break;				
+				}
+			} else if (is_auto_mode(mode) && bulet_one_bolt > 0) {
+				if (trigger_get_status()) {
+					wav_play(2);
+						
+					for (i = 0; i < 4 && bulet_one_bolt > 0; i++) {
+						send_charcode(characCode);
+						msleep(200);
+						bulet_one_bolt--;
+						local_bulet--;
+					}
+					
+					upload_status_data();
+					
+					//msleep(500);
+				}
+			}
+#if 0
+					static s8 lianfa = 0;
+					
+					if (lianfa == 0) {
+						wav_play(2);
+						for (i = 0; i < 3 && local_bulet > 0; i++) {
+							send_charcode(characCode);
+							msleep(100);
+							
+							bulet_one_bolt--;
+							local_bulet--;
+						}
+						sleep(1);
+					} else {
+						wav_play(3);
+					
+						for (i = 0; i < 4 && local_bulet > 0; i++) {
+							send_charcode(characCode);
+							msleep(100);
+							
+							bulet_one_bolt--;
+							local_bulet--;
+						}
+						
+						sleep(1);
+					}
+					
+					lianfa ^= 1;
+#endif				
+				
+			if (local_bulet <= 0) {
+				local_bulet = 0;
+				actived = 0;				 
+			}
+			
+			if (bulet_one_bolt <= 0) {
+				bulet_one_bolt = 0;
+			}
+		}	
+		
+		if (actived && bulet_one_bolt > 0 && mode != 0)
+			green_led_on();
+		else
+			blue_led_on();			
 		
 		msleep(100);
 	}
+#if 0		
+		if (actived) {
+			s8 bulet_used_nr = 0;
+			int status;
+			
+			is_bolt_on() && (status = trigger_get_status()) > 0) {
+				send_charcode(characCode);
+				
+				if (status == 2)
+					wav_play(2);
+				else
+					wav_play(0);
+				
+				bulet_used_nr++;
+				
+				if (bulet_used_nr == local_bulet)
+					break;
+				
+				bulet_one_bolt--;
+				local_bulet--;
+				
+				if (bulet_one_bolt == 0) {
+					actived = 0;
+			
+					reset_bolt();
+				}
+				
+				msleep(100);			
+			}
+			
+			if (bulet_used_nr > 0)				
+				upload_status_data();
+		}
+		
+		if (local_bulet <= 0) {
+			
+			actived = 0;
+			
+			reset_bolt();
+			
+			while (key_get_fresh_status() == 0)
+				msleep(100);
+			
+			key_insert_handle();
+		}	
+					
+		msleep(100);
+	}
+#endif
 }
 #endif

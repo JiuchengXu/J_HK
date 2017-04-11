@@ -2,6 +2,9 @@
 #include "helper.h"
 
 #ifdef GUN
+static DMA_InitTypeDef DMA_InitStructure;
+static u8 send_buf[4] = {0x55, 0, 0, 0};
+
 void TIM5_PWM_Init(u16 arr,u16 psc)
 {  
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -39,15 +42,62 @@ void TIM5_PWM_Init(u16 arr,u16 psc)
 	//TIM_Cmd(TIM5, ENABLE);  //使能TIM3	
 }
 
+void DMA2_Channel4_5_IRQHandler(void)
+{  
+	GPIO_InitTypeDef GPIO_InitStructure;
+  	
+  	if (DMA_GetFlagStatus(DMA2_FLAG_TC5) != RESET) {         
+ 
+      	DMA_Cmd(DMA2_Channel5, DISABLE);
+		
+      	DMA_ClearFlag(DMA2_FLAG_TC5);
+
+		while(USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET);
+		
+		while(USART_GetFlagStatus(UART4, USART_FLAG_TC) == RESET);
+		
+      	TIM_Cmd(TIM5, DISABLE);
+	
+		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	
+		GPIO_WriteBit(GPIOA, GPIO_Pin_1, Bit_RESET);   
+  	}
+}
+
 void led_uart_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef USART_InitStructure;
-	
+	NVIC_InitTypeDef NVIC_InitStructure;			
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
-	
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);	
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
 
+	NVIC_InitStructure.NVIC_IRQChannel = DMA2_Channel4_5_IRQn;
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 12;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  	NVIC_Init(&NVIC_InitStructure);   
+
+    DMA_Cmd(DMA2_Channel5, DISABLE);
+    DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)(&(UART4->DR));
+    DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t) send_buf;
+    DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+    DMA_InitStructure.DMA_BufferSize = 4;
+    DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStructure.DMA_MemoryDataSize = DMA_PeripheralDataSize_Byte;
+    DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+    DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+    DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+	DMA_ITConfig(DMA2_Channel5, DMA_IT_TC, ENABLE);
+	
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);//初始化GPIO
@@ -62,6 +112,8 @@ void led_uart_init(void)
 	USART_Init(UART4, &USART_InitStructure);
 			
 	USART_Cmd(UART4, ENABLE);
+	
+	USART_DMACmd(UART4, USART_DMAReq_Tx, ENABLE);
 }
 
 void uart4_putchar(char c)
@@ -78,16 +130,27 @@ void led_38k_init(void)
 
 void send_charcode(u16 code)
 {
-	u8 c1 = (u8)(code >> 8);
-	u8 c2 = (u8)(code & 0x00ff);
+	u8 c2 = (u8)(code >> 8);
+	u8 c1 = (u8)(code & 0x00ff);
 	GPIO_InitTypeDef GPIO_InitStructure;
 	
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1; //TIM5_CH2
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;  //复用推挽输出
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);//初始化GPIO
+
+	printf("#%04x\r\n", code);
 	
-	TIM_Cmd(TIM5, ENABLE);
+	TIM_Cmd(TIM5, ENABLE);	
+#if 0	
+	send_buf[1] = c1;
+	send_buf[2] = c2;
+	
+	DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+	
+	DMA_Cmd(DMA2_Channel5, ENABLE); 
+#else	
+	
 	//uart4_putchar(0xff);
 	//uart4_putchar(0xff);
 	//uart4_putchar(0x00);
@@ -102,6 +165,7 @@ void send_charcode(u16 code)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);//初始化GPIO
 	
 	GPIO_WriteBit(GPIOA, GPIO_Pin_1, Bit_RESET);
+#endif
 }
 
 void led_38k_test(void)

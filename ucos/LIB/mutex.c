@@ -26,7 +26,7 @@ void mutex_unlock(struct mutex_lock *lock)
 {
 	OS_ERR	err;
 	
-	OSSemPost(&lock->sem, OS_OPT_POST_1, &err);	
+	OSSemPost(&lock->sem, OS_OPT_POST_1 | OS_OPT_POST_NO_SCHED, &err);	
 }
 
 void wait_init(struct wait *wait)
@@ -47,7 +47,7 @@ void wake_up(struct wait *wait)
 {
 	OS_ERR	err;
 	
-	OSSemPost(&wait->sem, OS_OPT_POST_1, &err);	
+	OSSemPost(&wait->sem, OS_OPT_POST_1 | OS_OPT_POST_NO_SCHED, &err);	
 }
 
 

@@ -21,6 +21,7 @@
 #define I2C2_SDA_Pin           GPIO_Pin_11
 
 #define udelay(x)	{int ii = 72 * x; do {} while (ii--);}
+#define TIMEOUT			7200
 
 #if 0
 #define I2C_OR_OP		1
@@ -122,7 +123,7 @@ int i2c_opt(I2C_TypeDef *I2C, u8 Op, u8 slave_addr, u8 Address, u8 *Buf, u16 Len
 		i2c_buf->buf = Buf;
 		i2c_buf->len = Len;
 		
-		timeout = 72000 / 3;
+		timeout = TIMEOUT0 / 3;
 		while(I2C_GetFlagStatus(I2C, I2C_FLAG_BUSY) && --timeout);
 		if (timeout == 0) 
 			fix_I2C_busy(I2C);
@@ -408,39 +409,39 @@ int i2c_Reads(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *ReadBuffer, u16 R
 	OSSchedLock(&err);
 	
 	I2C_GenerateSTART(I2C, ENABLE);
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
 
 	if (timeout == 0)
 		goto out;
 	
 	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Transmitter);
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --timeout);
 	if (timeout == 0)
 		goto out;
 	
 	I2C_SendData(I2C, Address);
-	timeout = 720000;
+	timeout = TIMEOUT;
 	
 	while (!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED)  && --timeout ); 
 	if (timeout == 0)
 		goto out;
 		
 	I2C_GenerateSTART(I2C, ENABLE);
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
 	if (timeout == 0)
 		goto out;
 
 	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Receiver);
-	timeout = 720000;	
+	timeout = TIMEOUT;	
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)&& --timeout);
 	if (timeout == 0)
 		goto out;
 	
 	while (ReadNumber) {
-		timeout = 720000;
+		timeout = TIMEOUT;
 		if (ReadNumber == 1) {
 			I2C_AcknowledgeConfig(I2C, DISABLE);  
 			I2C_GenerateSTOP(I2C, ENABLE); 
@@ -471,7 +472,7 @@ int i2c_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData, u16 W
 	
 	OSSchedLock(&err);
 	
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while(I2C_GetFlagStatus(I2C, I2C_FLAG_BUSY) && --timeout);
 	
 	if (timeout == 0)
@@ -479,25 +480,25 @@ int i2c_Writes(I2C_TypeDef *I2C, u8 slave_addr, u8 Address, u8 *WriteData, u16 W
 
 	I2C_GenerateSTART(I2C, ENABLE);
 	
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_MODE_SELECT) && --timeout);
 	if (timeout == 0)
 		goto out;
 
 	I2C_Send7bitAddress(I2C, slave_addr, I2C_Direction_Transmitter);
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED) && --timeout);
 	if (timeout == 0)
 		goto out;
 	
 	I2C_SendData(I2C, Address);
-	timeout = 720000;
+	timeout = TIMEOUT;
 	while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --timeout);
 	if (timeout == 0)
 		goto out;
 	
 	while (WriteNumber--)  {
-		timeout = 720000;
+		timeout = TIMEOUT;
 		I2C_SendData(I2C, *WriteData);
 		WriteData++;
 		while(!I2C_CheckEvent(I2C, I2C_EVENT_MASTER_BYTE_TRANSMITTED) && --timeout);

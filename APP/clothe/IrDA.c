@@ -29,6 +29,7 @@ static OS_TCB TaskStkTCB;
 static OS_Q queue;
 static struct mutex_lock lock;
 static OS_TMR timer[CLOTHE_RECEIVE_MODULE_NUMBER];
+static u16 broken_cnt[CLOTHE_RECEIVE_MODULE_NUMBER];
 
 struct  recv_info {
 	u16 charcode;
@@ -81,61 +82,75 @@ int IrDA_led(int id, int color, int on)
 	struct recv_info status;
 	int ret;
 	
-	if (recv_offline_map & (1 << id))
-		return -1;
+	//if (recv_offline_map & (1 << id))
+	//	return -1;
 	
 	if (on == 1) 
 		led_local[id] |= color;
 	else
 		led_local[id] &= ~color;
-		
+	
 	ret = IrDA_Reads((RECV_MOD_SA_BASE + id) << 1, I2C_OP_CODE_SET_LEDS | led_local[id], (u8 *)&status, 3);
+	
+	if (ret != 0)
+		broken_cnt[id]++;
+	
+	if (broken_cnt[id] == 10000) {
+		while (1) {
+			red_led_on();
+			beep_on();
+			sleep(1);
+			led_off();
+			beep_off();
+			sleep(1);
+		}
+	}
 	
 	return ret;
 }
 
 void clothe_led_off(void *p_tmr, void *p_arg)
 {
-	int i = (int)p_arg;
+	int side = (int)p_arg + 1;
+	int i;
 	
-	IrDA_led(i, 0xf0, 0);
+	if (side == 1) {
+		for (i = 2; i < 5; i++)
+			IrDA_led(i, 0xf0, 0);
+		
+	} else if (side == 2) {
+		for (i = 0; i < 2; i++)
+			IrDA_led(i, 0xf0, 0);
+		
+	} else if (side == 3) {
+		for (i = 5; i < 8; i++)
+			IrDA_led(i, 0xf0, 0);
+	}
 }
 
-int clothe_led_on_then_off(int id, int color, int time)
+int clothe_led_on_then_off(int side, int color, int time)
 {
 	OS_ERR err;
+	int i;
 
-#if 0
-	struct led_ctl *tmp;
-	
-	if (recv_offline_map & (1 << id))
-		return -1;
-
-	tmp = malloc(sizeof(*tmp));
-	
-	if (tmp == NULL) {
-		err_log("NO memory for clothe_led_on_then_off\n");
-		return -1;
-	}
-	
-	tmp->id = id;
-	tmp->color = color;
-	tmp->time = time;
-	
-	OSQPost(&queue, (void *)tmp, sizeof(*tmp), OS_OPT_POST_FIFO, &err);
-#endif
-	
-	if (OSTmrStop(&timer[id], OS_OPT_TMR_NONE, NULL, &err) != DEF_TRUE)
-		return -1;
-	
-	printf("%d %d\r\n", id, err);
-	
-	//if (err != OS_ERR_NONE)
-//		return -1;
+	if (side == 1) {
+		for (i = 2; i < 5; i++)
+			IrDA_led(i, color, 1);
 		
-	IrDA_led(id, color, 1);
-	
-	OSTmrStart(&timer[id], &err);
+		OSTmrStart(&timer[0], &err);
+		
+	} else if (side == 2) {
+		for (i = 0; i < 2; i++)
+			IrDA_led(i, color, 1);
+		
+		OSTmrStart(&timer[1], &err);
+		
+	} else if (side == 3) {
+		for (i = 5; i < 8; i++)
+			IrDA_led(i, color, 1);
+		
+		OSTmrStart(&timer[2], &err);
+	}	
 	
 	if (err == OS_ERR_NONE)
 		return 0;
@@ -196,17 +211,11 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 	static 	u16 temp_charcode[CLOTHE_RECEIVE_MODULE_NUMBER];
 	
 	u8 status;
-	int ret = 0;
+	int ret = -1;
 	int i, char_cnt = 0, shoot_cnt = 0;
 	struct recv_info info;
 	
-	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++) {
-		if (recv_offline_map & (1 << i)) {
-			temp_charcode[i] = 0;
-			
-			continue;
-		}
-		
+	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++) {		
 		if (IrDA_Reads((RECV_MOD_SA_BASE + i) << 1, I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) == 0) {
 		
 			status = info.status;	
@@ -218,125 +227,63 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 					if (i >= CLOTHE_RECEIVE_MODULE_BODY_NUMBER)
 						shoot_cnt++;
 					
-					ret = 1;
-					
 					char_cnt++;
 					
 					break;
 				case 1:
 					temp_charcode[i] = 0;
+					ret = -1;
 					break;
 				case 255:
 					err_log("cound't support command\n");
 			}				
 		} else 
-			recv_offline_map |= 1 << i;
-			
+			temp_charcode[i] = 0;			
 	}
 	
 	//只打到衣服
 	if (char_cnt > 0 && shoot_cnt == 0) {	
-		if (temp_charcode[1] != 0) {
-			if (temp_charcode[0] != 0 && temp_charcode[2] == 0) {
-				//打到a边
-				*charcode = temp_charcode[0];
-				*head_shoot = 0;
-				clothe_led_on_then_off(0, 0xf0, 2);
-			} else if (temp_charcode[0] !=0 && temp_charcode[2] != 0) {
-				//打到中间
-				*charcode = temp_charcode[1];
-				*head_shoot = 0;
-				clothe_led_on_then_off(1, 0xf0, 2);
-			} else if (temp_charcode[0] ==0 && temp_charcode[2] != 0) {
-				//打到b边
-				*charcode = temp_charcode[2];
-				*head_shoot = 0;
-				clothe_led_on_then_off(2, 0xf0, 2);
-			} else {
-				//打到中间
-			}		
-		} else if (temp_charcode[0] != 0 || temp_charcode[2] != 0) {
-			if (temp_charcode[0] != 0 && temp_charcode[2] == 0) {
-				//打到a边
-				*charcode = temp_charcode[0];
-				*head_shoot = 0;
-				clothe_led_on_then_off(0, 0xf0, 2);
-				
-			} else if (temp_charcode[0] ==0 && temp_charcode[2] != 0) {
-				//打到b边
-				
-				*charcode = temp_charcode[2];
-				*head_shoot = 0;
-				clothe_led_on_then_off(2, 0xf0, 2);
-			}
-		} else {			
-			if (temp_charcode[3] != 0 && temp_charcode[4] == 0) {
-				//打到a边
-				*charcode = temp_charcode[3];
-				*head_shoot = 0;
-				clothe_led_on_then_off(3, 0xf0, 2);
-			} else if (temp_charcode[3] ==0 && temp_charcode[4] != 0) {
-				//打到b边
-				*charcode = temp_charcode[4];
-				*head_shoot = 0;
-				clothe_led_on_then_off(4, 0xf0, 2);
-			} else {
-				//打到a边
-				*charcode = temp_charcode[3];
-				*head_shoot = 0;
-				clothe_led_on_then_off(3, 0xf0, 2);
-			}
+		if (temp_charcode[2] != 0) {
+			*charcode = temp_charcode[2];
+			*head_shoot = 0;
+			ret = 1;
+		} else if (temp_charcode[3] != 0) {
+			*charcode = temp_charcode[3];
+			*head_shoot = 0;
+			ret = 1;
+		} else if (temp_charcode[4] != 0) {
+			*charcode = temp_charcode[4];
+			*head_shoot = 0;
+			ret = 1;
+		} else if (temp_charcode[0] != 0) {
+			*charcode = temp_charcode[0];
+			*head_shoot = 0;
+			ret = 2;
+		} else if (temp_charcode[1] != 0) {
+			*charcode = temp_charcode[1];
+			*head_shoot = 0;
+			ret = 2;
 		}
-	} else if (shoot_cnt > 0) { //打到衣服和头
-		if (temp_charcode[6] != 0) {
-			//前头
-			*charcode = temp_charcode[6];
-			*head_shoot = 1;
-			clothe_led_on_then_off(6, 0xf0, 2);
-		} else if (temp_charcode[5] != 0) {
-			//后头
+	} else {
+		if (temp_charcode[5] != 0) {
 			*charcode = temp_charcode[5];
 			*head_shoot = 1;
-			clothe_led_on_then_off(5, 0xf0, 2);
-		} else {
-			//上头
+			ret = 3;
+		} else if (temp_charcode[6] != 0) {
+			*charcode = temp_charcode[6];
+			*head_shoot = 1;
+			ret = 3;
+		} else if (temp_charcode[7] != 0) {
 			*charcode = temp_charcode[7];
 			*head_shoot = 1;
-			clothe_led_on_then_off(7, 0xf0, 2);
-		}	
+			ret = 3;
+		} 
 	}
+	
+	if (ret > 0)
+		printf("#%04x\r\n", info.charcode);
 		
 	return ret;
-}
-
-static volatile int started_flag = 0;
-
-static void clothe_led_ctrl(void *data)
-{
-	OS_ERR err;
-	struct led_ctl *tmp;
-	OS_MSG_SIZE size;
-	
-	while (1) {
-		started_flag = 1;
-		
-		tmp = OSQPend(&queue, 0, OS_OPT_PEND_BLOCKING, &size, NULL, &err);
-		
-		if (tmp == 0)
-			continue;
-		
-		if (err == OS_ERR_NONE && size == sizeof(*tmp)) {
-			IrDA_led(tmp->id, tmp->color, 1);
-			if (tmp->time == 0)
-				continue;
-			sleep(tmp->time);
-			
-			IrDA_led(tmp->id, tmp->color, 0);
-		}
-		
-		free((void *)tmp);
-
-	}
 }
 
 void IrDA_init(void)
@@ -355,54 +302,15 @@ void IrDA_init(void)
 			printf("err\n");
 	}
 	
-	sleep(1);
+	msleep(500);
 	
 	for (i = 0; i < 8; i++) {			
 		IrDA_led(i, 0xf0, 0);
 	}
 	
-	sleep(1);
-	
-#if 0	
-	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
-		IrDA_led(i, 0x80, 1);
-	
-	sleep(1);
-	
-	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
-		IrDA_led(i, 0x00, 0);
-#endif
-	
-	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
-		OSTmrCreate(&timer[i], "led timer", 20, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)clothe_led_off, (void *)i, &err);
-	
-	OSQCreate(&queue, "led queue", 1000, &err);
+	for (i = 0; i < 3; i++)
+		OSTmrCreate(&timer[i], "led timer", 5, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)clothe_led_off, (void *)i, &err);
 	
 	mutex_init(&lock);
-#if 0	
-    OSTaskCreate((OS_TCB *)&TaskStkTCB, 
-            (CPU_CHAR *)"led control", 
-            (OS_TASK_PTR)clothe_led_ctrl, 
-            (void * )0, 
-            (OS_PRIO)8, 
-            (CPU_STK *)&TaskStk[0], 
-            (CPU_STK_SIZE)OS_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)OS_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);	
-
-	while (!started_flag)
-		msleep(100);
-#endif
-#if 0	
-	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
-		clothe_led_on_then_off(i, 0x80, 1);
-		
-	while (1)
-		sleep(1);
-#endif
 }	
 #endif

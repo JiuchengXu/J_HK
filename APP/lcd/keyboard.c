@@ -54,8 +54,10 @@ static int __get_keyboard_value(void)
 	if (GPIO_ReadInputDataBit(KEY5_GPIO, KEY5_PIN) == Bit_RESET)
 		ret = 5;
 	
-	if (ret > 0)
+	if (ret > 0 && get_backlight_status() == 0) {
 		lcd_trunoff_backlight_countdown();
+		ret = -1;
+	}
 	
 	return ret;
 }

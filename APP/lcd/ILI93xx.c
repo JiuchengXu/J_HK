@@ -7,6 +7,8 @@
 
 static struct mutex_lock lcd_lock;
 static OS_TMR timer;
+static DMA_InitTypeDef DMA_InitStructure;
+static struct wait waiter;
 
 void LCD_FSMC_Config(void)
 {
@@ -102,7 +104,33 @@ void Lcd_ColorBox(u16 xStart,u16 yStart,u16 xLong,u16 yLong,u16 Color)
 void LCD_Fill(int sx,int sy,int ex,int ey, u32 color)
 {
 	Lcd_ColorBox(sx, sy, ex - sx+1, ey - sy+1, color);
-}      
+}
+
+static void dma_config(u32 dst, u32 src, u16 len)
+{
+	DMA_InitStructure.DMA_PeripheralBaseAddr = dst;
+    DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t) src;
+    DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+    DMA_InitStructure.DMA_BufferSize = len * 2;
+		
+	DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+	
+	DMA_Cmd(DMA2_Channel5, ENABLE); 
+}
+
+void DMA2_Channel4_5_IRQHandler(void)
+{  
+	GPIO_InitTypeDef GPIO_InitStructure;
+  	
+  	if (DMA_GetFlagStatus(DMA2_FLAG_TC5) != RESET) {         
+ 
+      	DMA_Cmd(DMA2_Channel5, DISABLE);
+		
+      	DMA_ClearFlag(DMA2_FLAG_TC5);
+		
+		wake_up(&waiter);
+  	}
+}
 
 void lcd_display_bitmap(int x, int y, const u16 * p, int xsize, int ysize)
 {
@@ -113,28 +141,41 @@ void lcd_display_bitmap(int x, int y, const u16 * p, int xsize, int ysize)
 	int i, j;
 	OS_ERR err;
 
-	//OSSchedLock(&err);
+	OSSchedLock(&err);
 	BlockWrite(Xstart, Xend, Ystart, Yend);
-	
+
+#if 1	
 	for (j = 0; j < ysize; j++)
 		for (i = 0; i < xsize; i++) {
 			LCD_WR_DATA(*p++);
 			//delay_us(1);
 		}
+#endif
 		
-	OSSchedUnlock(&err);	
+	OSSchedUnlock(&err);
+
+	//dma_config(Bank1_LCD_D, (u32)p, xsize * ysize);
+	//wait_for(&waiter);
 }
 
 int init_flag = 0;
+static int lcd_light_status = 0;
 
 void backlight_on(void)
 {
+	lcd_light_status = 1;
 	Lcd_Light_ON;
 }
 
 void backlight_off(void)
 {
+	lcd_light_status = 0;
 	Lcd_Light_OFF;
+}
+
+int get_backlight_status(void)
+{
+	return lcd_light_status;
 }
 
 int lcd_trunoff_backlight_countdown(void)
@@ -142,6 +183,9 @@ int lcd_trunoff_backlight_countdown(void)
 	OS_ERR err;
 	
 	backlight_on();
+	
+	if (OSTmrStop(&timer, OS_OPT_TMR_NONE, NULL, &err) != DEF_TRUE)
+		return -1;
 	
 	OSTmrStart(&timer, &err);
 	
@@ -157,7 +201,28 @@ void TFTLCD_Init(void)
 	u16 dummy;
 	OS_ERR err;
 	
+	NVIC_InitTypeDef NVIC_InitStructure;
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_CRC,ENABLE);//使能CRC时钟，否则STemWin不能使用
+	
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);
+	
+	NVIC_InitStructure.NVIC_IRQChannel = DMA2_Channel4_5_IRQn;
+  	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 12;
+  	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  	NVIC_Init(&NVIC_InitStructure);   
+
+    DMA_Cmd(DMA2_Channel5, DISABLE);
+    DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+    DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Enable;
+    DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+    DMA_InitStructure.DMA_MemoryDataSize = DMA_PeripheralDataSize_HalfWord;
+    DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+    DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+    DMA_InitStructure.DMA_M2M = DMA_M2M_Enable;
+    DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+	DMA_ITConfig(DMA2_Channel5, DMA_IT_TC, ENABLE);
 	
 	if (init_flag == 0) {
 		dummy = dummy;
@@ -278,8 +343,9 @@ void TFTLCD_Init(void)
     //writecommand(0x21); //Display inversion on
 	
 	mutex_init(&lcd_lock);
+	wait_init(&waiter);
 	
-	OSTmrCreate(&timer, "LCD backlight", 300, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
+	OSTmrCreate(&timer, "LCD backlight", 600, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
 	
 	//lcd_trunoff_backlight_countdown();
 } 

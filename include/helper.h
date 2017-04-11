@@ -23,7 +23,7 @@ static inline void int2chars_16(char *str, int v, int len)
 	int i;
 	
 	for (i = 0; i < len; i++) {
-		char tmp = (char)(v >> (len - i - 1) * 4) & 0xf;
+		char tmp = (char)(v >> ((len - i - 1) * 4)) & 0xf; //乘以4是16进制一个数字是4bit
 		
 		if ((int)tmp >= 0 && (int)tmp < 10)
 			str[i] = tmp + '0';
