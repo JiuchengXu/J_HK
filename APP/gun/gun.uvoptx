@@ -177,50 +177,34 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>330</LineNumber>
+          <LineNumber>577</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134257778</Address>
+          <Address>0</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>D:\绉佹椿\鏋?project\final\APP\gun\i2s.c</Filename>
+          <BreakIfRCount>0</BreakIfRCount>
+          <Filename>&lt;3&gt;.\display.c</Filename>
           <ExecCommand></ExecCommand>
           <Expression></Expression>
         </Bp>
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>349</LineNumber>
+          <LineNumber>586</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134257572</Address>
+          <Address>0</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>D:\绉佹椿\鏋?project\final\APP\gun\i2s.c</Filename>
+          <BreakIfRCount>0</BreakIfRCount>
+          <Filename>&lt;3&gt;.\display.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\gun\i2s.c\349</Expression>
-        </Bp>
-        <Bp>
-          <Number>2</Number>
-          <Type>0</Type>
-          <LineNumber>280</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134231274</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>D:\绉佹椿\鏋?project\final\APP\gun\i2s.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\gun\i2s.c\280</Expression>
+          <Expression></Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>

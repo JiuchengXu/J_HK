@@ -99,13 +99,13 @@ static void read_key_from_eeprom(void)
 	union key tmp_key;
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
-#if 0	
+#if 1	
 		memset(tmp_key.gen_key.ssid, 0, sizeof(gen_key.ssid));
 		memset(tmp_key.gen_key.passwd, 0, sizeof(gen_key.passwd));
 		
 		memcpy(tmp_key.gen_key.sn, "SN14578454145890", 16);
 		memcpy(tmp_key.gen_key.user_id, "0000015332457447", 16);
-		memcpy(tmp_key.gen_key.host_ip, "192168001105", 12);
+		memcpy(tmp_key.gen_key.host_ip, "192168001104", 12);
 		memcpy(tmp_key.gen_key.ssid, "1103", 4);
 		memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
 		memcpy(tmp_key.gen_key.bulet, "999", 3);

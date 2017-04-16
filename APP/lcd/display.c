@@ -11,13 +11,20 @@
 
 extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
-#define FONT_BASE_ADDR		(U32)(3 * 0x100000)
+#define FONT16_BASE_ADDR		(U32)(3 * 0x100000)
+
+#define FONT33_BASE_ADDR		(U32)(2 * 0x100000)
+
+#define BIG_FONT	1
+#define LITTLE_FONT	0
+
+#define MSG_SUM		5
 
 static PROGBAR_Handle ahProgBar[2];
 static struct mutex_lock lock;
 
-GUI_FONT     XBFFont;
-GUI_XBF_DATA XBF_Data;
+GUI_FONT     XB16FFont, XB33FFont;
+GUI_XBF_DATA XB16F_Data, XB33F_Data;
 
 
 /*********************************************************************
@@ -107,6 +114,15 @@ struct info_statistac {
 	int enemy;
 };
 
+struct msg_queue {
+	struct {
+		int id;
+		s8 h, m, s;
+	} msg[MSG_SUM];
+	
+	int idx;
+};
+
 struct vip_info {
 	char nickname[100];
 	char level[100];
@@ -177,6 +193,18 @@ static char wanfa[8][40] = {
 "\xe5\x85\x88\xe8\xbe\xbe\xe5\x88\xb0""120\xe5\x8d\xb3\xe4\xb8\xba\xe8\x83\x9c\xe5\x88\xa9\xe3\x80\x82",
 };
 
+static struct msg_queue msg_queue;
+
+static char msg[16][100] = {	
+"\xe6\x80\xbb\xe5\x8f\xb0\xef\xbc\x9a\xe5\x89\x8d\xe5\x8f\xb0\xe6\x9c\x89\xe4\xba\xba\xe6\x89\xbe",
+"\xe6\x80\xbb\xe5\x8f\xb0\xef\xbc\x9a\xe4\xbd\x99\xe9\xa2\x9d\xe4\xb8\x8d\xe8\xb6\xb3"
+};
+
+static char task_iterm[2][25] = {
+"\xe6\x95\x8c\xe6\x83\x85\xe9\x80\x9a\xe6\x8a\xa5",//敌情通报
+"\xe8\x83\x9c\xe8\xb4\x9f\xe5\x88\xa4\xe5\xae\x9a" //胜负判定
+};
+
 static int spi_flash_get_bg(void * p, const U8 ** ppData, unsigned NumBytes, U32 Off)
 {
 	if (NumBytes > sizeof(get_data_ex))
@@ -218,18 +246,6 @@ static int spi_flash_get_msg(void * p, const U8 ** ppData, unsigned NumBytes, U3
 	return NumBytes;
 }
 
-static void get_statistac(struct info_statistac *info)
-{
-/*	info->ammo = 10;
-	info->blod = 10;
-	info->enemy = 100;
-	info->headshot = 10;
-	info->headshoted = 100;
-	info->kill = 10;
-	info->killed = 10;
-	info->our = 100;*/
-}
-
 static void display_iterm(char *s, int x, int y, int val)
 {
 	char str[100];
@@ -242,8 +258,6 @@ static void display_iterm(char *s, int x, int y, int val)
 static void show_statistac(void)
 {
 	int i = 0;
-		
-	get_statistac(&info);
 			
 	GUI_SetColor(GUI_WHITE);
 	
@@ -266,7 +280,7 @@ static void show_statistac(void)
 	display_iterm(iterm[i++], 308, 160, info.enemy);	
 }
 
-static void display_hanzi(char *src, int x, int y, GUI_COLOR color)
+static void display_hanzi(char *src, int x, int y, GUI_COLOR color, int font_size)
 {	
 	GUI_COLOR bak = GUI_GetColor();
 	
@@ -276,7 +290,10 @@ static void display_hanzi(char *src, int x, int y, GUI_COLOR color)
 	
 	GUI_UC_SetEncodeUTF8();
 	
-	GUI_SetFont(&XBFFont);
+	if (font_size == LITTLE_FONT)
+		GUI_SetFont(&XB16FFont);
+	else
+		GUI_SetFont(&XB33FFont);
 	
 	GUI_DispStringAt(src, x, y);
 	
@@ -303,10 +320,10 @@ static void display_task_info(void)
 	int i, j;
 	
 	for (i = 0, j = 0; i < 5; i++, j+= 30)
-		display_hanzi(wanfa[i], 20, 100 + j, GUI_GREEN);
+		display_hanzi(wanfa[i], 20, 100 + j, GUI_GREEN, LITTLE_FONT);
 	
 	for (j = 0; i < 7; i++, j+= 30)
-		display_hanzi(wanfa[i], 234, 100 + j, GUI_GREEN);
+		display_hanzi(wanfa[i], 234, 100 + j, GUI_GREEN, LITTLE_FONT);
 }
 
 static void clock_show(s8 hour, s8 min, s8 sec)
@@ -328,15 +345,48 @@ static void clock_show(s8 hour, s8 min, s8 sec)
 
 static int _cbGetData16(U32 Off, U16 NumBytes, void * pVoid, void * pBuffer)
 {
-	flash_bytes_read(FONT_BASE_ADDR + Off, pBuffer, NumBytes);
+	flash_bytes_read(FONT16_BASE_ADDR + Off, pBuffer, NumBytes);
 	
 	return 0;
+}
+
+static int _cbGetData33(U32 Off, U16 NumBytes, void * pVoid, void * pBuffer)
+{
+	flash_bytes_read(FONT33_BASE_ADDR + Off, pBuffer, NumBytes);
+	
+	return 0;
+}
+
+static void display_msg_info(void)
+{
+	int i, j;
+	char time[20];
+	
+	display_hanzi("\xe6\xb6\x88\xe6\x81\xaf", 190, 50, GUI_WHITE, BIG_FONT);
+	
+	 
+
+	for (i =0, j = 0; i < MSG_SUM; i++, j += 30) {
+		sprintf(time, "%02d:%02d%02d", msg_queue.msg[i].h, msg_queue.msg[i].m, msg_queue.msg[i].s);
+		display_en(time, 30, 100 + j, GUI_GREEN);
+		display_hanzi(msg[msg_queue.msg[i].id], 150, 100 + j, GUI_GREEN, LITTLE_FONT);	
+	}
+}
+
+void save_msg_id(int msg_id)
+{	
+	msg_queue.msg[msg_queue.idx].id = msg_id;
+	
+	get_time(&msg_queue.msg[msg_queue.idx].h, &msg_queue.msg[msg_queue.idx].m, &msg_queue.msg[msg_queue.idx].s);
+	
+	if (++msg_queue.idx == MSG_SUM)
+		msg_queue.idx = 0;
 }
 
 void read_spi_flash_header(void)
 {
 	flash_bytes_read(0, (u8 *)&img_section, sizeof(img_section));
-	
+
 	if (img_section.pic_num >= 1 && img_section.pic_num <= 64)
 		return;
 	
@@ -362,12 +412,27 @@ void show_msg(void)
 {
 	mutex_lock(&lock);
 	
-	GUI_MEMDEV_Select(home1_hmem);	
-		
-	GUI_BMP_DrawEx(spi_flash_get_msg, NULL, 0, 0);
+	GUI_MEMDEV_Select(home1_hmem);
 
-	GUI_MEMDEV_Select(0);
-	GUI_DrawBitmap(&bmmsg_notify1, 400, 55);
+	GUI_MEMDEV_Write(bg_hmem);
+	
+	GUI_SetColor(GUI_DARKGRAY);
+	
+	GUI_EnableAlpha(1);	
+	
+	GUI_SetAlpha(50);
+	
+	GUI_FillRect(20, 40, 440, 90);
+
+	GUI_SetColor(GUI_GRAY);	
+	
+	GUI_FillRect(20, 90, 440, 240);
+
+	display_msg_info();
+
+	GUI_SetAlpha(0);
+
+	GUI_MEMDEV_Select(0);	
 	
 	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);
 	
@@ -376,6 +441,7 @@ void show_msg(void)
 
 void show_task(void)
 {
+	
 	mutex_lock(&lock);
 	
 	GUI_MEMDEV_Select(home1_hmem);
@@ -390,28 +456,30 @@ void show_task(void)
 	
 	GUI_SetFont(&GUI_Fontfont_task);
 	GUI_UC_SetEncodeUTF8();
-		
-	GUI_DispStringAt(task_font[0], 45, 50);
 	
-	GUI_DispStringAt(task_font[1], 260, 50);
-	
-	GUI_SetColor(GUI_GRAY);
+	GUI_SetColor(GUI_DARKGRAY);
 	
 	GUI_EnableAlpha(1);
 	
-	GUI_SetAlpha(200);
+	GUI_SetAlpha(50);
 	
 	GUI_FillRect(20, 40, 226, 90);
 	
 	GUI_FillRect(234, 40, 440, 90);
 	
-	GUI_SetAlpha(50);
+	//GUI_SetAlpha(50);
 	
-	GUI_SetColor(GUI_DARKGRAY);
+	GUI_SetColor(GUI_GRAY);
 	
 	GUI_FillRect(20, 90, 226, 240);
 	
 	GUI_FillRect(234, 90, 440, 240);
+	
+		//GUI_DispStringAt(task_font[0], 45, 50);
+	display_hanzi(task_iterm[0], 45, 50, GUI_WHITE, BIG_FONT);
+	
+	//GUI_DispStringAt(task_font[1], 260, 50);
+	display_hanzi(task_iterm[1], 260, 50, GUI_WHITE, BIG_FONT);
 	
 	display_task_info();
 	
@@ -583,21 +651,37 @@ void display_key(void)
 {
 	char msg[] = "\请插入\\";
 	
-	display_hanzi(msg, 100, 100, GUI_WHITE);
+	display_hanzi(msg, 100, 100, GUI_WHITE, LITTLE_FONT);
 	display_en("key...", 170, 101, GUI_WHITE);
 }
 
 void XBF_font_init(void)
 {
-	int ret = GUI_XBF_CreateFont(&XBFFont, 
-						&XBF_Data, 
+	int ret = GUI_XBF_CreateFont(&XB16FFont, 
+						&XB16F_Data, 
 						GUI_XBF_TYPE_PROP, 
 						_cbGetData16, 
 						NULL); 
 	if (ret != 0) {
 		GUI_Clear();
 		
-		display_en("Please downlaod font file", 10, 200, GUI_WHITE);
+		display_en("Please downlaod 16 font file", 10, 200, GUI_WHITE);
+		
+		while (1)
+			sleep(1);
+	}
+	
+	ret = GUI_XBF_CreateFont(&XB33FFont, 
+						&XB33F_Data, 
+						GUI_XBF_TYPE_PROP, 
+						_cbGetData33, 
+						NULL); 
+	
+	
+	if (ret != 0) {
+		GUI_Clear();
+		
+		display_en("Please downlaod 33 font file", 10, 200, GUI_WHITE);
 		
 		while (1)
 			sleep(1);

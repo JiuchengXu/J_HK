@@ -50,6 +50,8 @@ static s8 actived;
 static u16 packageID = 0;
 static s16 life_left = 0, bulet_left = 0, clothe_power = 0, gun_power = 0;
 
+static int need_reflash = 0;
+
 extern void lcd_display_line_16bpp(int x, int y, u16 * p, int xsize, int ysize);
 extern int spi_flash_get_data(void * p, const U8 ** ppData, unsigned NumBytes, U32 Off);
 extern int get_keyboard_value(void);
@@ -134,21 +136,30 @@ static void recv_host_handler(char *buf, u16 len)
 		struct MsgPkg *msg = (void *)buf;
 		struct statistic_info info;
 		
-		info.bekillCount = CHAR2INT(msg->bekillCount);
-		info.headBeShootCount = CHAR2INT(msg->headBeShootCount);
-		info.headShootCount = CHAR2INT(msg->headShootCount);
-		info.killCount = CHAR2INT(msg->killCount);
-		info.myTeamBeKillCount = CHAR2INT(msg->myTeamBeKillCount);
-		info.myTeamKillCount = CHAR2INT(msg->myTeamKillCount);
-		
-		set_killed(info.bekillCount);
-		set_kill(info.killCount);
-		set_enemy(info.myTeamBeKillCount);
-		set_our(info.myTeamKillCount);
-		set_headshot(info.headShootCount);
-		set_headshoted(info.headBeShootCount);
-		
-		show_home();
+		switch (msg->msg_type[0]) {
+			case 'a':				
+				info.bekillCount = CHAR2INT(msg->bekillCount);
+				info.headBeShootCount = CHAR2INT(msg->headBeShootCount);
+				info.headShootCount = CHAR2INT(msg->headShootCount);
+				info.killCount = CHAR2INT(msg->killCount);
+				info.myTeamBeKillCount = CHAR2INT(msg->myTeamBeKillCount);
+				info.myTeamKillCount = CHAR2INT(msg->myTeamKillCount);
+				
+				set_killed(info.bekillCount);
+				set_kill(info.killCount);
+				set_enemy(info.myTeamBeKillCount);
+				set_our(info.myTeamKillCount);
+				set_headshot(info.headShootCount);
+				set_headshoted(info.headBeShootCount);
+
+				need_reflash = 1;
+				break;
+			case '0':
+				
+			case '1':
+				save_msg_id(char2u32_16(msg->msg_type, sizeof(msg->msg_type)));
+				break;
+		}
 	}
 }
 
@@ -359,7 +370,6 @@ void start_net_init_task(void)
 void main_loop(void)
 {
 	int bulet_left_bak, life_left_bak;
-	int need_reflash = 0;
 	int keyboard_bak = 1;
 	int tmp_progress = 1;
 	int active_retry = 30;
