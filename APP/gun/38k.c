@@ -102,7 +102,7 @@ void led_uart_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);//初始化GPIO
 	
-	USART_InitStructure.USART_BaudRate = 2000;
+	USART_InitStructure.USART_BaudRate = 1500;
 	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
 	USART_InitStructure.USART_Parity = USART_Parity_No ;
@@ -139,7 +139,7 @@ void send_charcode(u16 code)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);//初始化GPIO
 
-	printf("#%04x\r\n", code);
+	//printf("#%04x\r\n", code);
 	
 	TIM_Cmd(TIM5, ENABLE);	
 #if 0	
@@ -152,9 +152,9 @@ void send_charcode(u16 code)
 #else	
 	
 	//uart4_putchar(0xff);
-	//uart4_putchar(0xff);
+	uart4_putchar(0xff);
 	//uart4_putchar(0x00);
-	uart4_putchar(0x55);
+	uart4_putchar(0x5a);
 	uart4_putchar(c1);
 	uart4_putchar(c2);
 	uart4_putchar(0x00); //receive node couldn't recive the last byte without 0x00

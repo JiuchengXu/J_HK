@@ -99,16 +99,17 @@ static void read_key_from_eeprom(void)
 	union key tmp_key;
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
-#if 1	
+#if 0	
 		memset(tmp_key.gen_key.ssid, 0, sizeof(gen_key.ssid));
 		memset(tmp_key.gen_key.passwd, 0, sizeof(gen_key.passwd));
 		
 		memcpy(tmp_key.gen_key.sn, "SN14578454145890", 16);
 		memcpy(tmp_key.gen_key.user_id, "0000015332457447", 16);
-		memcpy(tmp_key.gen_key.host_ip, "192168001104", 12);
-		memcpy(tmp_key.gen_key.ssid, "1103", 4);
-		memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
-		memcpy(tmp_key.gen_key.bulet, "999", 3);
+		memcpy(tmp_key.gen_key.host_ip, "192168000104", 12);
+		//memcpy(tmp_key.gen_key.ssid, "1103", 4);
+		memcpy(tmp_key.gen_key.ssid, WIFI_SSID, strlen(WIFI_SSID));
+		//memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
+		memcpy(tmp_key.gen_key.passwd, WIFI_PASSWD, strlen(WIFI_PASSWD));
 #endif	
 	if (memcmp(tmp_key.spec_key.key, "AKey", 4) == 0) {
 		upload_spec_key((u8 *)tmp_key.spec_key.key);
@@ -122,7 +123,7 @@ static void read_key_from_eeprom(void)
 		
 		int2chars_16(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
 		
-		//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
+		key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	}
 #endif
 	
@@ -131,11 +132,13 @@ static void read_key_from_eeprom(void)
 	
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
+	//memcpy(tmp_key.gen_key.bulet, "999", 3);
+	
 	//memcpy(tmp_key.gen_key.bulet, "100", 3);
-	gen_key = tmp_key.gen_key;
+	//gen_key = tmp_key.gen_key;
 	
 	int2chars_16(gen_key.bulet, 0, sizeof(gen_key.bulet));
-	//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
+	key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
 	gen_key = tmp_key.gen_key;
 #endif
@@ -301,17 +304,17 @@ void key_init(void)
 	
 	key_fresh_status = 0;
 		
-    OSTaskCreate((OS_TCB *)&TaskStkTCB, 
-            (CPU_CHAR *)"key_state_machine_task", 
-            (OS_TASK_PTR)key_state_machine_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_KEY_PRIO, 
-            (CPU_STK *)&TaskStk[0], 
-            (CPU_STK_SIZE)OS_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)OS_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);
+	OSTaskCreate((OS_TCB *)&TaskStkTCB, 
+			(CPU_CHAR *)"key_state_machine_task", 
+			(OS_TASK_PTR)key_state_machine_task, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_KEY_PRIO, 
+			(CPU_STK *)&TaskStk[0], 
+			(CPU_STK_SIZE)OS_TASK_STACK_SIZE/10, 
+			(CPU_STK_SIZE)OS_TASK_STACK_SIZE, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);
 }

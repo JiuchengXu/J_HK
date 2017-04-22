@@ -303,6 +303,7 @@ static void recv_host_msg_handler(char *buf, u16 len)
 	packType = char2u32_16(data->packTye, sizeof(data->packTye));
 	
 	if (packType == MESSAGE_TYPE) {
+		int i;
 		memcpy(&resp, data, sizeof(struct MsgPkg));
 		INT2CHAR(resp.packTye, MESSAGE_RESPONSE_TYPE);
 		INT2CHAR(resp.rx_ok, 0);

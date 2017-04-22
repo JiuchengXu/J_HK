@@ -131,7 +131,7 @@ void clothe_led_off(void *p_tmr, void *p_arg)
 int clothe_led_on_then_off(int side, int color, int time)
 {
 	OS_ERR err;
-	int i;
+	int i, ret = 0;
 
 	if (side == 1) {
 		for (i = 2; i < 5; i++)
@@ -229,6 +229,8 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 					
 					char_cnt++;
 					
+					//printf("#%04x\r\n", info.charcode);
+					
 					break;
 				case 1:
 					temp_charcode[i] = 0;
@@ -279,9 +281,6 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 			ret = 3;
 		} 
 	}
-	
-	if (ret > 0)
-		printf("#%04x\r\n", info.charcode);
 		
 	return ret;
 }

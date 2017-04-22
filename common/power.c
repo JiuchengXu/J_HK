@@ -34,6 +34,9 @@ s8 get_power(void)
 	u16 adc_v = get_adc_val();
 	float f_adc_v = (float)adc_v / 4096 * 3.3 * 2;
 	int ret = (int)((f_adc_v - 3) * 100) ;
+	
+	if (ret > 100)
+		ret = 100;
 		
 	return (s8) ret;
 }

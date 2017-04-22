@@ -395,6 +395,7 @@ void main_loop(void)
 	s8 i;
 	int active_retry = 30;
 	s8 bulet_one_bolt = 0;
+	s8 mode, status = 0;
 	
 	blue_led_on();	
 	
@@ -428,9 +429,7 @@ retry:
 	
 	//watch_dog_feed_task_init();
 	
-	while (1) {
-		s8 mode, status = 0;
-		
+	while (1) {		
 		if (key_get_fresh_status())
 				key_insert_handle();
 		
@@ -449,10 +448,13 @@ retry:
 			mode = get_mode();
 			
 			if (is_single_mode(mode) && bulet_one_bolt > 0) {
-				switch (trigger_get_status()) {
+				s8 a = trigger_get_status();
+					
+				switch (a) {
 					case 1 :
 						if (status == 0) {
-							wav_play(0);	
+							wav_play(0);
+							
 							send_charcode(characCode);
 							
 							status = 1;
@@ -466,8 +468,9 @@ retry:
 						}
 						break;
 					case 0 :
-						if (status == 1)
+						if (status == 1) {
 							status =  0;
+						}
 						break;				
 				}
 			} else if (is_auto_mode(mode) && bulet_one_bolt > 0) {

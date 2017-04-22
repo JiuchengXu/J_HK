@@ -157,15 +157,19 @@ static struct flash_img_section img_section;
 
 static int menu_index = 0;
 
-static char iterm[][100] = {
-"\xe6\x9d\x80\xe6\x95\x8c ",
-"\xe8\xa2\xab\xe6\x9d\x80 ",
-"\xe7\x88\x86\xe5\xa4\xb4 ",
-"\xe8\xa2\xab\xe7\x88\x86 ",
-"\xe8\xa1\x80\xe9\x87\x8f ",
-"\xe5\xbc\xb9\xe8\x8d\xaf ",
-"\xe6\x88\x91\xe6\x96\xb9 ",
-"\xe6\x95\x8c\xe6\x96\xb9 ",
+static char iterm[][50] = {
+"\xe6\x9d\x80\xe6\x95\x8c",
+"\xe8\xa2\xab\xe6\x9d\x80",
+"\xe7\x88\x86\xe5\xa4\xb4",
+"\xe8\xa2\xab\xe7\x88\x86",
+"\xe8\xa1\x80\xe9\x87\x8f",
+"\xe5\xbc\xb9\xe8\x8d\xaf",
+"\xe5\xb9\xb8\xe5\xad\x98",
+"\xe7\xa7\xaf\xe5\x88\x86",
+};
+static char seccess_fail_font[2][50] = {
+"\xe8\x83\x9c\xe5\x88\xa9",
+"\xe5\xa4\xb1\xe8\xb4\xa5",
 };
 
 static char task_font[][50] = {
@@ -364,13 +368,68 @@ static void display_msg_info(void)
 	
 	display_hanzi("\xe6\xb6\x88\xe6\x81\xaf", 190, 50, GUI_WHITE, BIG_FONT);
 	
-	 
-
+	if (msg_queue.idx < 0)
+		return;
+	
 	for (i =0, j = 0; i < MSG_SUM; i++, j += 30) {
 		sprintf(time, "%02d:%02d%02d", msg_queue.msg[i].h, msg_queue.msg[i].m, msg_queue.msg[i].s);
 		display_en(time, 30, 100 + j, GUI_GREEN);
 		display_hanzi(msg[msg_queue.msg[i].id], 150, 100 + j, GUI_GREEN, LITTLE_FONT);	
 	}
+}
+
+void display_success(void)
+{
+	extern GUI_CONST_STORAGE GUI_FONT GUI_Fontsuccess78;
+	
+	mutex_lock(&lock);
+	
+	GUI_MEMDEV_Select(home1_hmem);
+	
+	GUI_MEMDEV_Write(bg_hmem);
+
+	GUI_SetColor(GUI_GREEN);
+	
+	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
+	
+	GUI_SetFont(&GUI_Fontsuccess78);
+	
+	GUI_UC_SetEncodeUTF8();
+	
+	GUI_DispStringAt(seccess_fail_font[0], 160, 100);	
+	
+	GUI_MEMDEV_Select(0);
+	
+	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);
+
+	mutex_unlock(&lock);
+}
+
+void display_fail(void)
+{
+	extern GUI_CONST_STORAGE GUI_FONT GUI_Fontsuccess78;
+	
+	mutex_lock(&lock);
+	
+	GUI_MEMDEV_Select(home1_hmem);
+	
+	GUI_MEMDEV_Write(bg_hmem);
+
+	GUI_SetColor(GUI_RED);
+	
+	GUI_SetTextMode(GUI_TEXTMODE_TRANS);
+	
+	GUI_SetFont(&GUI_Fontsuccess78);
+	
+	GUI_UC_SetEncodeUTF8();
+	
+	GUI_DispStringAt(seccess_fail_font[1], 160, 100);	
+	
+	GUI_MEMDEV_Select(0);
+	
+	GUI_MEMDEV_CopyToLCDAt(home1_hmem, 0, 20);
+
+	mutex_unlock(&lock);	
 }
 
 void save_msg_id(int msg_id)

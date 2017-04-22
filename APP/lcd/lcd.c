@@ -151,8 +151,13 @@ static void recv_host_handler(char *buf, u16 len)
 				set_our(info.myTeamKillCount);
 				set_headshot(info.headShootCount);
 				set_headshoted(info.headBeShootCount);
+			
+				printf("killed %d kill %d score %d live %d headshot %d headshoted %d\r\n",
+						info.bekillCount, info.killCount, info.myTeamBeKillCount,
+						info.myTeamKillCount, info.headShootCount, info.headBeShootCount);
 
-				need_reflash = 1;
+				//need_reflash = 1;
+				show_home();
 				break;
 			case '0':
 				

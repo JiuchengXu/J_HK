@@ -464,6 +464,11 @@
               <FileType>5</FileType>
               <FilePath>.\includes.h</FilePath>
             </File>
+            <File>
+              <FileName>sunccess.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\sunccess.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -271,7 +271,7 @@ void uart_inint(void)
 	USART_ITConfig(WIFI_USART, USART_IT_RXNE , ENABLE); 
 	
 	//usb_uart_recv_hook = wifi_uart_putc;
-	wifi_uart_recv_hook = usb_uart_putc;
+	//wifi_uart_recv_hook = usb_uart_putc;
 	
 	register_bus(wifi_uart_send, wifi_uart_recieve);
 	
