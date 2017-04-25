@@ -548,12 +548,14 @@ retry:
 	
 	upload_status_data();
 	
-	//watch_dog_feed_task_init();
+	watch_dog_feed_task_init();
 	
 	while (1) {	
 		recheck:		
 		if ((ret = irda_get_shoot_info(g_characode, g_head_shoot)) >= 0 && blod > 0) {
 			set_attack_info(g_characode, g_head_shoot, get_time(NULL, NULL, NULL));
+			
+			startup_motor();
 			
 			if (g_head_shoot[0] == 1)
 				blod -= 50 ;
@@ -563,16 +565,20 @@ retry:
 			if (blod <= 0) {
 				blod = 0;
 				
+				clothe_led("all", 1);
+				
 				upload_status_data();
 				
 				work_flag_dipatch_gun(STOP_WORK);
-				
-				while (blod <= 0) {
+								
+				while (1) {
 					if (key_get_fresh_status()) {
 						if (blod <= 0)
 							work_flag_dipatch_gun(START_WORK);
 						
 						blod += key_get_blod();
+						
+						upload_status_data();
 
 						ok_notice();
 						
@@ -587,29 +593,32 @@ retry:
 						break;
 					}
 					
-					clothe_led("all", 1);
-					
 					msleep(200);
 				}
-			} else
-				clothe_led_on_then_off(ret, 0xf0, 1);
+			} else {
+				upload_status_data();
+				clothe_led_on_then_off(ret, 0xf0, 1);				
+			}
 			
 			if (ret > 0)
 				goto recheck;
 		}
-#if 1		
+		
 		if (key_get_fresh_status()) {
-			if (blod <= 0)
-				work_flag_dipatch_gun(START_WORK);
+			s16 val = key_get_blod();
+			if (blod + val < blod)
+				blod = 0x7fff;
 			
-			blod += key_get_blod();			
+			ok_notice();
+
+			upload_status_data();			
 		}
 		
-		if (blod != blod_bak)
-			upload_status_data();
+	//	if (blod != blod_bak)
+		//	upload_status_data();
 		
-		blod_bak = blod;
-#endif		
+	//	blod_bak = blod;
+		
 		msleep(150);
 	}	
 }

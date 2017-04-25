@@ -1,17 +1,17 @@
 #include "includes.h"
 #include "helper.h"
 
-#define KEY1_PIN	GPIO_Pin_15
-#define KEY1_GPIO	GPIOG
-#define EXIT_KEY1_GPIO GPIO_PortSourceGPIOG
-#define EXIT_KEY1_PIN PIO_PinSource15
-#define KEY1_EXTI_Line	EXTI_Line15
+#define KEY5_PIN	GPIO_Pin_15
+#define KEY5_GPIO	GPIOG
+#define EXIT_KEY5_GPIO GPIO_PortSourceGPIOG
+#define EXIT_KEY5_PIN PIO_PinSource15
+#define KEY5_EXTI_Line	EXTI_Line15
 
-#define KEY2_GPIO	GPIOD
-#define KEY2_PIN	GPIO_Pin_2
-#define EXIT_KEY2_GPIO GPIO_PortSourceGPIOD
-#define EXIT_KEY2_PIN PIO_PinSource2
-#define KEY2_EXTI_Line	EXTI_Line2
+#define KEY4_GPIO	GPIOD
+#define KEY4_PIN	GPIO_Pin_2
+#define EXIT_KEY4_GPIO GPIO_PortSourceGPIOD
+#define EXIT_KEY4_PIN PIO_PinSource2
+#define KEY4_EXTI_Line	EXTI_Line2
 
 #define KEY3_GPIO	GPIOC
 #define KEY3_PIN	GPIO_Pin_10
@@ -19,17 +19,17 @@
 #define EXIT_KEY3_PIN PIO_PinSource10
 #define KEY3_EXTI_Line	EXTI_Line10
 
-#define KEY4_GPIO	GPIOA
-#define KEY4_PIN	GPIO_Pin_0
-#define EXIT_KEY4_GPIO GPIO_PortSourceGPIOA
-#define EXIT_KEY4_PIN PIO_PinSource0
-#define KEY4_EXTI_Line	EXTI_Line0
+#define KEY2_GPIO	GPIOA
+#define KEY2_PIN	GPIO_Pin_0
+#define EXIT_KEY2_GPIO GPIO_PortSourceGPIOA
+#define EXIT_KEY2_PIN PIO_PinSource0
+#define KEY2_EXTI_Line	EXTI_Line0
 
-#define KEY5_GPIO	GPIOA
-#define KEY5_PIN	GPIO_Pin_2
-#define EXIT_KEY5_GPIO GPIO_PortSourceGPIOA
-#define EXIT_KEY5_PIN PIO_PinSource2
-#define KEY5_EXTI_Line	EXTI_Line2
+#define KEY1_GPIO	GPIOA
+#define KEY1_PIN	GPIO_Pin_2
+#define EXIT_KEY1_GPIO GPIO_PortSourceGPIOA
+#define EXIT_KEY1_PIN PIO_PinSource2
+#define KEY1_EXTI_Line	EXTI_Line2
 
 static int key_map[6] = {0, 5, 4, 3, 2, 1};
 
@@ -37,7 +37,7 @@ static int press_key_counts = 0;
 
 static int __get_keyboard_value(void)
 {
-	int ret = -1;
+	int ret = 0;
 	
 	if (GPIO_ReadInputDataBit(KEY1_GPIO, KEY1_PIN) == Bit_RESET)
 		ret = 1;
@@ -54,26 +54,19 @@ static int __get_keyboard_value(void)
 	if (GPIO_ReadInputDataBit(KEY5_GPIO, KEY5_PIN) == Bit_RESET)
 		ret = 5;
 	
-	if (ret > 0 && get_backlight_status() == 0) {
-		lcd_trunoff_backlight_countdown();
-		ret = -1;
-	}
-	
 	return ret;
 }
 
 int get_keyboard_value(void)
 {
-	int i, ret;
-	static int current_value = 1;
+	int ret;
 	
 	ret = __get_keyboard_value();
 	
-	if (ret != -1)
-		current_value = key_map[ret];
-
+	while (__get_keyboard_value())
+		msleep(20);
 	
-	return current_value;	
+	return ret;	
 }
 
 void keyboard_init(void)

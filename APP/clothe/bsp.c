@@ -390,5 +390,6 @@ void  BSP_Init (void)
 	beep_init();	
 	e2prom_onboard_init();
 	download_task_init();
-	adc_init();
+	adc_init();	
+	moto_init();
 }

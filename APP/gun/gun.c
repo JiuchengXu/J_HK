@@ -435,7 +435,7 @@ retry:
 		
 		if (actived) {	
 			if (check_pull_bolt() > 0) {
-				wav_play(1);
+				play_bolt();
 				
 				msleep(100);
 				
@@ -453,7 +453,7 @@ retry:
 				switch (a) {
 					case 1 :
 						if (status == 0) {
-							wav_play(0);
+							play_bulet();
 							
 							send_charcode(characCode);
 							
@@ -524,9 +524,8 @@ retry:
 				actived = 0;				 
 			}
 			
-			if (bulet_one_bolt <= 0) {
+			if (bulet_one_bolt <= 0)
 				bulet_one_bolt = 0;
-			}
 		}	
 		
 		if (actived && bulet_one_bolt > 0 && mode != 0)

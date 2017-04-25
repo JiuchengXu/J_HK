@@ -370,4 +370,14 @@ int wav_play(int i)
 	
 	return 0;
 }
+
+void play_bolt(void)
+{
+	wav_play(1);
+}
+
+void play_bulet(void)
+{
+	wav_play(0);
+}
 #endif

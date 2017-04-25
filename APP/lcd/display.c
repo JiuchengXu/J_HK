@@ -22,11 +22,12 @@ extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
 static PROGBAR_Handle ahProgBar[2];
 static struct mutex_lock lock;
+static int need_update_flag;
 
 GUI_FONT     XB16FFont, XB33FFont;
 GUI_XBF_DATA XB16F_Data, XB33F_Data;
 
-
+#if 0
 /*********************************************************************
 *
 *       Palette
@@ -103,16 +104,9 @@ GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1 = {
   _acmsg_notify1,  // Pointer to picture data (indices)
   &_Palmsg_notify1   // Pointer to palette
 };
-struct info_statistac {
-	int kill;
-	int killed;
-	int headshot;
-	int headshoted;
-	int blod;
-	int ammo;
-	int our;
-	int enemy;
-};
+
+#endif
+
 
 struct msg_queue {
 	struct {
@@ -121,19 +115,8 @@ struct msg_queue {
 	} msg[MSG_SUM];
 	
 	int idx;
-};
-
-struct vip_info {
-	char nickname[100];
-	char level[100];
-	int score;
-	int team;
-	int kill;
-	int killed;
-	int headshot;
-	int headshoted;
-	int success;
-	int fail;
+	int count;	
+	int fresh;
 };
 
 struct flash_img_section {
@@ -150,7 +133,6 @@ extern GUI_CONST_STORAGE GUI_FONT GUI_Fontfont_task;
 extern void battery_show(int i);
 extern u32 get_time(u8 *, u8 *, u8 *);
 
-static struct info_statistac info;
 static GUI_MEMDEV_Handle  bg_hmem = 0, home1_hmem = 0;
 static u8 get_data_ex[1440];
 static struct flash_img_section img_section;
@@ -259,9 +241,15 @@ static void display_iterm(char *s, int x, int y, int val)
 	GUI_DispStringAt(str, x, y);	
 }
 
+static int has_message(void)
+{
+	return msg_queue.fresh;
+}
+
 static void show_statistac(void)
 {
 	int i = 0;
+	
 			
 	GUI_SetColor(GUI_WHITE);
 	
@@ -270,18 +258,18 @@ static void show_statistac(void)
 	GUI_SetFont(&GUI_Fontsongti20);
 	GUI_UC_SetEncodeUTF8();
 	
-	display_iterm(iterm[i++], 180, 40, info.kill);
+	display_iterm(iterm[i++], 180, 40, get_kill());
 
-	display_iterm(iterm[i++], 308, 40, info.killed);
+	display_iterm(iterm[i++], 308, 40, get_killed());
 
-	display_iterm(iterm[i++], 180, 80, info.headshot);
-	display_iterm(iterm[i++], 308, 80, info.headshoted);
+	display_iterm(iterm[i++], 180, 80, get_headshot());
+	display_iterm(iterm[i++], 308, 80, get_headshoted());
 
-	display_iterm(iterm[i++], 180, 120, info.blod);
-	display_iterm(iterm[i++], 308, 120, info.ammo);
+	display_iterm(iterm[i++], 180, 120, get_blod());
+	display_iterm(iterm[i++], 308, 120, get_ammo());
 
-	display_iterm(iterm[i++], 180, 160, info.our);
-	display_iterm(iterm[i++], 308, 160, info.enemy);	
+	display_iterm(iterm[i++], 180, 160, get_our());
+	display_iterm(iterm[i++], 308, 160, get_enemy());	
 }
 
 static void display_hanzi(char *src, int x, int y, GUI_COLOR color, int font_size)
@@ -365,14 +353,14 @@ static void display_msg_info(void)
 {
 	int i, j;
 	char time[20];
+	int cnt;
 	
 	display_hanzi("\xe6\xb6\x88\xe6\x81\xaf", 190, 50, GUI_WHITE, BIG_FONT);
 	
-	if (msg_queue.idx < 0)
-		return;
+	cnt = msg_queue.count > MSG_SUM ? MSG_SUM : msg_queue.count;
 	
-	for (i =0, j = 0; i < MSG_SUM; i++, j += 30) {
-		sprintf(time, "%02d:%02d%02d", msg_queue.msg[i].h, msg_queue.msg[i].m, msg_queue.msg[i].s);
+	for (i =0, j = 0; i < cnt; i++, j += 30) {
+		sprintf(time, "%02d:%02d:%02d", msg_queue.msg[i].h, msg_queue.msg[i].m, msg_queue.msg[i].s);
 		display_en(time, 30, 100 + j, GUI_GREEN);
 		display_hanzi(msg[msg_queue.msg[i].id], 150, 100 + j, GUI_GREEN, LITTLE_FONT);	
 	}
@@ -440,6 +428,8 @@ void save_msg_id(int msg_id)
 	
 	if (++msg_queue.idx == MSG_SUM)
 		msg_queue.idx = 0;
+	
+	msg_queue.count++;
 }
 
 void read_spi_flash_header(void)
@@ -586,46 +576,6 @@ void show_home(void)
 	mutex_unlock(&lock);
 }
 
-void set_kill(int kill)
-{	
-	info.kill = kill;	
-}
-
-void set_killed(int killed)
-{
-	info.killed = killed;	
-}
-
-void set_headshot(int headshot)
-{
-	info.headshot = headshot;	
-}
-
-void set_headshoted(int headshoted)
-{
-	info.headshoted = headshoted;
-}
-
-void set_blod(int blod)
-{
-	info.blod = blod;	
-}
-
-void set_ammo(int ammo)
-{
-	info.ammo = ammo;	
-}
-
-void set_our(int our)
-{
-	info.our = our;
-}
-
-void set_enemy(int enemy)
-{
-	info.enemy = enemy;	
-}
-
 void upiterm_show(struct iterm_info *info)
 {
 	static GUI_MEMDEV_Handle iterm_hmem = 0;
@@ -745,4 +695,38 @@ void XBF_font_init(void)
 		while (1)
 			sleep(1);
 	}
+}
+
+void need_update(void)
+{
+	need_update_flag = 1;
+}
+
+void display_menu(int menu_idx)
+{
+	if (need_update_flag == 0)
+		return;
+	
+	switch (menu_idx) {
+		case 1 :	
+			show_home();
+
+			break;	
+		case 2:
+			show_task();
+
+			break;
+		case 3:
+			show_msg();
+
+			break;
+		case 4:
+
+			break;
+		default:		
+			
+			break;
+	}
+
+	need_update_flag = 0;
 }

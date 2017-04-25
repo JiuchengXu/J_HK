@@ -99,8 +99,7 @@ static void recv_host_handler1(char *buf, u16 len)
 	if (packTye == CLOTHES_STATUS_TYPE) {
 		life_left = (s16)char2u32_16(data1->lifeLeft, sizeof(data1->lifeLeft));
 	} else if (packTye == GUN_STATUS_TYPE) {
-		bulet_left = (s16)char2u32_16(data->bulletLeft, sizeof(data->bulletLeft));
-	
+		bulet_left = (s16)char2u32_16(data->bulletLeft, sizeof(data->bulletLeft));	
 	}	
 }
 
@@ -122,6 +121,8 @@ static void recv_host_handler(char *buf, u16 len)
 				break;
 			case LCD_LIFE :
 				life_left = msg_value;
+				set_blod(life_left);
+				need_update();
 				break;
 			case LCD_PWR_INFO:
 				clothe_power = msg_value;
@@ -155,9 +156,8 @@ static void recv_host_handler(char *buf, u16 len)
 				printf("killed %d kill %d score %d live %d headshot %d headshoted %d\r\n",
 						info.bekillCount, info.killCount, info.myTeamBeKillCount,
 						info.myTeamKillCount, info.headShootCount, info.headBeShootCount);
-
-				//need_reflash = 1;
-				show_home();
+			
+				need_update();
 				break;
 			case '0':
 				
@@ -183,6 +183,8 @@ static void recv_gun_handler(char *buf, u16 len)
 		switch (msg_type) {
 			case LCD_GUN_BULLET :
 				bulet_left = msg_value;
+				set_ammo(bulet_left);
+				need_update();
 				break;
 			case LCD_LIFE :
 				life_left = msg_value;
@@ -378,6 +380,7 @@ void main_loop(void)
 	int keyboard_bak = 1;
 	int tmp_progress = 1;
 	int active_retry = 30;
+	int menu_idx = 1;
 	
 	GUI_Init();
 
@@ -432,61 +435,24 @@ retry:
 	
 	GUI_Delay(100);
 #endif	
+	
 	show_home();
 	
 	ok_notice();
 	
-	//battery_show(get_power());
-	
-	//watch_dog_feed_task_init();
-			
-#if 1			
+	watch_dog_feed_task_init();
+						
 	while (1) {
-		int keyboard = get_keyboard_value();
+		int key_val = get_keyboard_value();
 		
-		if (keyboard != keyboard_bak)
-			need_reflash = 1;
-		else
-			need_reflash = 0;
+		if (key_val) {
+			menu_idx = key_val;
+			lcd_trunoff_backlight_countdown();
+			need_update();
+		}
 		
-		keyboard_bak = keyboard;
-		
-		switch (keyboard) {
-			case 1 :
-				if (bulet_left_bak != bulet_left) {
-					set_ammo(bulet_left);
-					bulet_left_bak = bulet_left;
-					
-					need_reflash = 1;
-				}
-				
-				if (life_left != life_left_bak) {
-					set_blod(life_left);
-					life_left_bak = life_left;
-					
-					need_reflash = 1;					
-				}
-				
-				if (need_reflash == 1)
-					show_home();
-				
-				break;
-		
-			case 2:
-				if (need_reflash == 1)
-					show_task();
-				
-				break;
-			case 3:
-				if (need_reflash == 1)
-					show_msg();
-				
-				break;
-			case 4:
-				break;
-			default:
-				
-				break;
+		if (menu_idx > 0) {
+			display_menu(menu_idx);
 		}
 		
 		if (key_get_fresh_status())
@@ -494,6 +460,5 @@ retry:
 		
 		msleep(100);
 	}
-#endif
 }
 #endif
