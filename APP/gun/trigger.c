@@ -12,20 +12,21 @@
 #define GUN_MODE_SINGLE	2
 #define GUN_MODE_OTHER	3
 
-#define GUN_MODE1_GPIO		GPIOC
-#define GUN_MODE1_GPIO_PIN	GPIO_Pin_13
+
+#define GUN_MOTOR_GPIO		GPIOB
+#define GUN_MOTOR_GPIO_PIN	GPIO_Pin_6
+
+#define GUN_MODE1_GPIO		GPIOD
+#define GUN_MODE1_GPIO_PIN	GPIO_Pin_2
 
 #define GUN_MODE2_GPIO		GPIOC
 #define GUN_MODE2_GPIO_PIN	GPIO_Pin_1
 
-#define GUN_BOLT_GPIO		GPIOD
+#define GUN_BOLT_GPIO		GPIOC
 #define GUN_BOLT_GPIO_PIN	GPIO_Pin_2
 
 #define GUN_TRIGER_GPIO		GPIOC
-#define GUN_TRIGER_GPIO_PIN	GPIO_Pin_2
-
-#define GUN_MOTOR_GPIO		GPIOB
-#define GUN_MOTOR_GPIO_PIN	GPIO_Pin_6
+#define GUN_TRIGER_GPIO_PIN	GPIO_Pin_13
 
 
 extern void send_charcode(u16 code);

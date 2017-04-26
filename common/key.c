@@ -137,7 +137,7 @@ static void read_key_from_eeprom(void)
 	//memcpy(tmp_key.gen_key.bulet, "100", 3);
 	//gen_key = tmp_key.gen_key;
 	
-	int2chars_16(tmp_key.gen_key.bulet, 0, sizeof(tmp_key.gen_key.bulet));
+	//int2chars_16(tmp_key.gen_key.bulet, 0, sizeof(tmp_key.gen_key.bulet));
 	//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	
 	gen_key = tmp_key.gen_key;
