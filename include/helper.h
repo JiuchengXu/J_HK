@@ -83,10 +83,7 @@ static inline u32 char2u32_10(char *s, s8 bit_len)
 	return ret; //16޸׆ք
 }
 
-static inline void err_log(char *log)
-{
-	
-}
+#define err_log(s, args...)		printf(s, ##args)
 
 
 #define INT2CHAR(x, i)	int2chars_16(x, i, sizeof(x))

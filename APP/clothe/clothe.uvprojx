@@ -434,6 +434,11 @@
               <FileType>1</FileType>
               <FilePath>.\IrDA.c</FilePath>
             </File>
+            <File>
+              <FileName>moto.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\moto.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

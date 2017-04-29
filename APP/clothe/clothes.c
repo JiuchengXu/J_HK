@@ -64,6 +64,7 @@ static volatile s16 blod, bulet;
 static u16 packageID = 0;
 
 static struct attacked_info_record att_info;
+static int offline_mode = 0;
 
 extern int irda_get_shoot_info(u16 *, s8 *);
 extern void key_get_ip_suffix(char *s);
@@ -76,11 +77,17 @@ extern void clothe_led(char *s, int);
 
 static s8 sendto_host(char *buf, u16 len)
 {
+	if (offline_mode == 1)
+		return 0;
+
 	return send_data((u32)HOST_IP, (u16)HOST_PORT, (u16)HOST_PORT, buf, len);
 }
 
 static s8 sendto_host_msg(char *buf, u16 len)
 {
+	if (offline_mode == 1)
+		return 0;
+
 	return send_data((u32)HOST_IP, (u16)HOST_MSG_PORT, (u16)HOST_MSG_PORT, buf, len);
 }
 
@@ -237,20 +244,19 @@ static void recv_gun_handler(char *buf, u16 len)
 		struct GunActiveAskData ask_data;
 		u16 tmp; 
 		
-		if (characCode == 0xffff) //无效的
-			return;
-		
 		INT2CHAR(ask_data.transMod, 0);
 		INT2CHAR(ask_data.packTye, ACTIVE_RESPONSE_TYPE);
 		INT2CHAR(ask_data.packageID, packageID++);
 		tmp = characCode + 0x100;
 		INT2CHAR(ask_data.characCode, tmp);
 		sendto_gun((void *)&ask_data, sizeof(ask_data));
-		printf("#to gun%04x\r\n", tmp);
+		err_log("#to gun%04x\r\n", tmp);
 	} else {
 		if (packTye == GUN_STATUS_TYPE) {
 			int value = CHAR2INT(((struct GunStatusData *)data)->bulletLeft);
 			bulet = value;
+			
+			err_log("bulet value is %d\r\n", bulet);
 		}
 		
 		sendto_host(buf, len);
@@ -290,7 +296,7 @@ static void recv_host_handler(char *buf, u16 len)
 		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
 		set_time(char2u32_16(data->curTime, sizeof(data->curTime)));
 		
-		printf("#from host%04x\r\n", characCode);	
+		err_log("#from host%04x\r\n", characCode);	
 	} 
 }
 
@@ -329,6 +335,8 @@ static void recv_lcd_handler(char *buf, u16 len)
 		INT2CHAR(ask_data.packageID, packageID++);
 		tmp = get_time(NULL, NULL, NULL);
 		INT2CHAR(ask_data.rtc, tmp);
+		
+		ask_data.mode = offline_mode == 1? '1' : '0';
 		
 		sendto_lcd((char *)&ask_data, sizeof(ask_data));
 		msleep(20);
@@ -378,9 +386,10 @@ static void recv_task(void)
 				recv_host_handler(recv_buf, len);
 		} else if (ip == LCD_IP)
 			recv_lcd_handler(recv_buf, len);
-		else if (ip == GUN_IP)
+		else if (ip == GUN_IP) {
+			err_log("receive gun\r\n");
 			recv_gun_handler(recv_buf, len);
-		else if (ip == RIFLE_IP)
+		} else if (ip == RIFLE_IP)
 			recv_rifle_handler(recv_buf, len);
 		else
 			sendto_host(recv_buf, len);
@@ -398,34 +407,34 @@ static void power_status_task(void)
 static void start_clothe_tasks(void)
 {
 	OS_ERR err;
-	
-   OSTaskCreate((OS_TCB *)&RecvTaskStkTCB, 
-            (CPU_CHAR *)"net reciv task", 
-            (OS_TASK_PTR)recv_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_RECV_PRIO, 
-            (CPU_STK *)&RecvTaskStk[0], 
-            (CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);	
-				
-   OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
-            (CPU_CHAR *)"heart beat task", 
-            (OS_TASK_PTR)power_status_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_HB_PRIO, 
-            (CPU_STK *)&HBTaskStk[0], 
-            (CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);
+
+	OSTaskCreate((OS_TCB *)&RecvTaskStkTCB, 
+			(CPU_CHAR *)"net reciv task", 
+			(OS_TASK_PTR)recv_task, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_RECV_PRIO, 
+			(CPU_STK *)&RecvTaskStk[0], 
+			(CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE/10, 
+			(CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);	
+
+	OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
+			(CPU_CHAR *)"heart beat task", 
+			(OS_TASK_PTR)power_status_task, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_HB_PRIO, 
+			(CPU_STK *)&HBTaskStk[0], 
+			(CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE/10, 
+			(CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);
 }
 
 static void net_init(void)
@@ -459,9 +468,6 @@ static void net_init(void)
 	if (set_dhcp() < 0)
 		err_log("set_dhcp");
 		
-	if (connect_ap(host, host_passwd, 3) < 0)
-		err_log("connect_ap");
-	
 	//if (set_ip(ip) < 0)
 	//	err_log("set_ip");
 		
@@ -474,11 +480,16 @@ static void net_init(void)
 	for (i = 0; i < 5; i++)
 		udp_close(i);
 	
-	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
-		err_log("");
-	
-	if (udp_setup(HOST_IP, HOST_MSG_PORT, HOST_MSG_PORT) < 0)
-		err_log("");
+	if (connect_ap(host, host_passwd, 3) < 0) {
+		err_log("connect_ap %s %s  work in offline\r\n", host, host_passwd);
+		offline_mode = 1;
+	} else {
+		if (udp_setup(HOST_IP, HOST_MSG_PORT, HOST_MSG_PORT) < 0)
+			err_log("");
+
+		if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
+			err_log("");
+	}
 	
 	if (udp_setup(GUN_IP, GUN_PORT, GUN_PORT) < 0)
 		err_log("");
@@ -509,7 +520,7 @@ void upload_spec_key(u8 *key)
 
 void main_loop(void)
 {
-	u32 charcode;
+	u32 cha5rcode;
 	s16 blod_bak;
 	int active_retry = 30;
 	int ret;
@@ -531,7 +542,7 @@ retry:
 		
 	start_clothe_tasks();
 		
-	while (!actived && --active_retry) {
+	while (offline_mode == 0 && !actived && --active_retry) {
 		active_request();
 		sleep(2);
 	}
@@ -594,6 +605,8 @@ retry:
 					}
 					
 					msleep(200);
+					
+					//clothe_led("all", 1);
 				}
 			} else {
 				upload_status_data();

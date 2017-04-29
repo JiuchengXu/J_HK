@@ -345,7 +345,7 @@ void TFTLCD_Init(void)
 	mutex_init(&lcd_lock);
 	wait_init(&waiter);
 	
-	OSTmrCreate(&timer, "LCD backlight", 600, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
+	OSTmrCreate(&timer, "LCD backlight", 1200, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)backlight_off, NULL, &err);
 	
 	//lcd_trunoff_backlight_countdown();
 } 

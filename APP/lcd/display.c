@@ -9,8 +9,6 @@
 #include "mutex.h"
 #include "display.h"
 
-extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
-
 #define FONT16_BASE_ADDR		(U32)(3 * 0x100000)
 
 #define FONT33_BASE_ADDR		(U32)(2 * 0x100000)
@@ -20,12 +18,22 @@ extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
 #define MSG_SUM		5
 
-static PROGBAR_Handle ahProgBar[2];
-static struct mutex_lock lock;
-static int need_update_flag;
 
-GUI_FONT     XB16FFont, XB33FFont;
-GUI_XBF_DATA XB16F_Data, XB33F_Data;
+struct msg_queue {
+	struct {
+		int id;
+		s8 h, m, s;
+	} msg[MSG_SUM];
+	
+	int idx;
+	int count;	
+	int fresh;
+};
+
+struct flash_img_section {
+	u32 pic_num;
+	u32 img_addr[63];//256 bytes
+};
 
 #if 0
 /*********************************************************************
@@ -108,27 +116,12 @@ GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1 = {
 #endif
 
 
-struct msg_queue {
-	struct {
-		int id;
-		s8 h, m, s;
-	} msg[MSG_SUM];
-	
-	int idx;
-	int count;	
-	int fresh;
-};
-
-struct flash_img_section {
-	u32 pic_num;
-	u32 img_addr[63];//256 bytes
-};
 
 extern int GUI_PNG_Draw      (const void * pFileData, int DataSize, int x0, int y0);
 extern void flash_bytes_read(u32 addr, u8 *buf, u32 len);
 extern GUI_CONST_STORAGE GUI_FONT GUI_Fontsongti20;
 extern GUI_CONST_STORAGE GUI_FONT GUI_Fontfont_task;
-//extern const unsigned char _achead_pic[43681UL + 1];
+extern GUI_CONST_STORAGE GUI_BITMAP bmmsg_notify1;
 
 extern void battery_show(int i);
 extern u32 get_time(u8 *, u8 *, u8 *);
@@ -138,6 +131,15 @@ static u8 get_data_ex[1440];
 static struct flash_img_section img_section;
 
 static int menu_index = 0;
+
+static PROGBAR_Handle ahProgBar[2];
+static struct mutex_lock lock;
+static int need_update_flag;
+
+static int offline_enable;
+
+static GUI_FONT     XB16FFont, XB33FFont;
+static GUI_XBF_DATA XB16F_Data, XB33F_Data;
 
 static char iterm[][50] = {
 "\xe6\x9d\x80\xe6\x95\x8c",
@@ -258,18 +260,22 @@ static void show_statistac(void)
 	GUI_SetFont(&GUI_Fontsongti20);
 	GUI_UC_SetEncodeUTF8();
 	
-	display_iterm(iterm[i++], 180, 40, get_kill());
+	if (offline_enable == 1) {
+		display_iterm(iterm[4], 170, 120, get_blod());
+		display_iterm(iterm[5], 308, 120, get_ammo());		
+	} else {	
+		display_iterm(iterm[0], 170, 40, get_kill());
+		display_iterm(iterm[1], 308, 40, get_killed());
 
-	display_iterm(iterm[i++], 308, 40, get_killed());
+		display_iterm(iterm[2], 170, 80, get_headshot());
+		display_iterm(iterm[3], 308, 80, get_headshoted());
 
-	display_iterm(iterm[i++], 180, 80, get_headshot());
-	display_iterm(iterm[i++], 308, 80, get_headshoted());
+		display_iterm(iterm[4], 170, 120, get_blod());
+		display_iterm(iterm[5], 308, 120, get_ammo());
 
-	display_iterm(iterm[i++], 180, 120, get_blod());
-	display_iterm(iterm[i++], 308, 120, get_ammo());
-
-	display_iterm(iterm[i++], 180, 160, get_our());
-	display_iterm(iterm[i++], 308, 160, get_enemy());	
+		display_iterm(iterm[6], 170, 160, get_our());
+		display_iterm(iterm[7], 308, 160, get_enemy());
+	}		
 }
 
 static void display_hanzi(char *src, int x, int y, GUI_COLOR color, int font_size)
@@ -364,6 +370,11 @@ static void display_msg_info(void)
 		display_en(time, 30, 100 + j, GUI_GREEN);
 		display_hanzi(msg[msg_queue.msg[i].id], 150, 100 + j, GUI_GREEN, LITTLE_FONT);	
 	}
+}
+
+void enable_offline(int mode)
+{
+	offline_enable = mode;
 }
 
 void display_success(void)
@@ -702,7 +713,7 @@ void need_update(void)
 	need_update_flag = 1;
 }
 
-void display_menu(int menu_idx)
+void display_menu(int menu_idx, int offline_mode)
 {
 	if (need_update_flag == 0)
 		return;
@@ -710,15 +721,18 @@ void display_menu(int menu_idx)
 	switch (menu_idx) {
 		case 1 :	
 			show_home();
-
+			err_log("show home\r\n");
 			break;	
 		case 2:
 			show_task();
-
+			err_log("show task\r\n");
 			break;
 		case 3:
+			if (offline_enable == 1)
+				break;
+			
 			show_msg();
-
+			err_log("show message\r\n");
 			break;
 		case 4:
 

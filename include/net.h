@@ -48,7 +48,8 @@ struct LcdActiveAskData {
 	char transMod [1];
 	char packTye[1];
 	char packageID [4];
-	char rtc[8];	
+	char rtc[8];
+	char mode;
 };
 
 struct attacked_info {

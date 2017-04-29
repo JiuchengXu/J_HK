@@ -81,7 +81,7 @@ void bus_recieve_string(char *buf)
 
 static s8 wait_for_return(void)
 {
-	int timeout = 1500;
+	int timeout = 3000;
 	char priv_char;
 	
 	while (timeout) {	
@@ -380,6 +380,8 @@ void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 	*ip = map->ip;
 	*port = map->remote_port;
 	*buf_len = len;
+	
+	err_log("fd %d ip %x port %d\r\n", fd, *ip, *port);
 }
 
 s8 udp_close(u8 id)

@@ -469,6 +469,11 @@
               <FileType>1</FileType>
               <FilePath>.\sunccess.c</FilePath>
             </File>
+            <File>
+              <FileName>statistic.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\statistic.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

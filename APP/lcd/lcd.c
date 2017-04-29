@@ -52,6 +52,8 @@ static s16 life_left = 0, bulet_left = 0, clothe_power = 0, gun_power = 0;
 
 static int need_reflash = 0;
 
+static int offline_mode;
+
 extern void lcd_display_line_16bpp(int x, int y, u16 * p, int xsize, int ysize);
 extern int spi_flash_get_data(void * p, const U8 ** ppData, unsigned NumBytes, U32 Off);
 extern int get_keyboard_value(void);
@@ -118,6 +120,8 @@ static void recv_host_handler(char *buf, u16 len)
 		switch (msg_type) {
 			case LCD_GUN_BULLET :
 				bulet_left = msg_value;
+				set_ammo(bulet_left);
+				need_update();
 				break;
 			case LCD_LIFE :
 				life_left = msg_value;
@@ -133,6 +137,12 @@ static void recv_host_handler(char *buf, u16 len)
 
 		set_time(char2u32_16(data->rtc, sizeof(data->rtc)));
 		actived = 1;
+		
+		if (data->mode == '1')
+			enable_offline(1);
+		else
+			enable_offline(0);
+		
 	} else if (packType == MESSAGE_TYPE) {
 		struct MsgPkg *msg = (void *)buf;
 		struct statistic_info info;
@@ -448,6 +458,7 @@ retry:
 		if (key_val) {
 			menu_idx = key_val;
 			lcd_trunoff_backlight_countdown();
+			err_log("press %d\r\n", menu_idx);
 			need_update();
 		}
 		

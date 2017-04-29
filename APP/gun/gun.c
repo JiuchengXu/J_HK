@@ -108,7 +108,7 @@ static int upload_status_data(void)
 	INT2CHAR(data.deviceType, 1);
 	INT2CHAR(data.deviceSubType, get_deviceSubType());
 	
-	memcpy(data.deviceSN, "0987654321abcdef", sizeof(data.deviceSN));
+	//memcpy(data.deviceSN, "0987654321abcdef", sizeof(data.deviceSN));
 	INT2CHAR(data.bulletLeft, local_bulet);
 	key_get_sn(data.keySN);
 	INT2CHAR(data.characCode, characCode);
@@ -429,6 +429,8 @@ retry:
 	
 	//watch_dog_feed_task_init();
 	
+	err_log("actived is %d\r\n", actived);
+	
 	while (1) {		
 		if (key_get_fresh_status())
 				key_insert_handle();
@@ -436,6 +438,8 @@ retry:
 		if (actived) {	
 			if (check_pull_bolt() > 0) {
 				play_bolt();
+				
+				err_log("press bolt\r\n");
 				
 				msleep(100);
 				
@@ -455,7 +459,10 @@ retry:
 						if (status == 0) {
 							play_bulet();
 							
+							
 							send_charcode(characCode);
+
+							err_log("press trigger\r\n");
 							
 							status = 1;
 							
@@ -476,6 +483,7 @@ retry:
 			} else if (is_auto_mode(mode) && bulet_one_bolt > 0) {
 				if (trigger_get_status()) {
 					wav_play(2);
+					
 						
 					for (i = 0; i < 4 && bulet_one_bolt > 0; i++) {
 						send_charcode(characCode);
@@ -483,45 +491,18 @@ retry:
 						bulet_one_bolt--;
 						local_bulet--;
 					}
+
+					err_log("press trigger\r\n");
 					
 					upload_status_data();
 					
-					//msleep(500);
 				}
 			}
-#if 0
-					static s8 lianfa = 0;
-					
-					if (lianfa == 0) {
-						wav_play(2);
-						for (i = 0; i < 3 && local_bulet > 0; i++) {
-							send_charcode(characCode);
-							msleep(100);
-							
-							bulet_one_bolt--;
-							local_bulet--;
-						}
-						sleep(1);
-					} else {
-						wav_play(3);
-					
-						for (i = 0; i < 4 && local_bulet > 0; i++) {
-							send_charcode(characCode);
-							msleep(100);
-							
-							bulet_one_bolt--;
-							local_bulet--;
-						}
-						
-						sleep(1);
-					}
-					
-					lianfa ^= 1;
-#endif				
 				
 			if (local_bulet <= 0) {
 				local_bulet = 0;
-				actived = 0;				 
+				actived = 0;
+				err_log("local bulet is 0\r\n");
 			}
 			
 			if (bulet_one_bolt <= 0)
@@ -535,54 +516,5 @@ retry:
 		
 		msleep(100);
 	}
-#if 0		
-		if (actived) {
-			s8 bulet_used_nr = 0;
-			int status;
-			
-			is_bolt_on() && (status = trigger_get_status()) > 0) {
-				send_charcode(characCode);
-				
-				if (status == 2)
-					wav_play(2);
-				else
-					wav_play(0);
-				
-				bulet_used_nr++;
-				
-				if (bulet_used_nr == local_bulet)
-					break;
-				
-				bulet_one_bolt--;
-				local_bulet--;
-				
-				if (bulet_one_bolt == 0) {
-					actived = 0;
-			
-					reset_bolt();
-				}
-				
-				msleep(100);			
-			}
-			
-			if (bulet_used_nr > 0)				
-				upload_status_data();
-		}
-		
-		if (local_bulet <= 0) {
-			
-			actived = 0;
-			
-			reset_bolt();
-			
-			while (key_get_fresh_status() == 0)
-				msleep(100);
-			
-			key_insert_handle();
-		}	
-					
-		msleep(100);
-	}
-#endif
 }
 #endif

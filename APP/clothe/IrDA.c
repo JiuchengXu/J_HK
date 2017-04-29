@@ -202,6 +202,10 @@ void clothe_led(char *s, int on)
 	else
 		return;
 	
+	OSTmrStop(&timer[0], OS_OPT_TMR_NONE, NULL, &err);
+	OSTmrStop(&timer[1], OS_OPT_TMR_NONE, NULL, &err);
+	OSTmrStop(&timer[2], OS_OPT_TMR_NONE, NULL, &err);
+	
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
 		IrDA_led(i, color, on);
 }
@@ -229,7 +233,7 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 					
 					char_cnt++;
 					
-					//printf("#%04x\r\n", info.charcode);
+					err_log("#%04x %d\r\n", info.charcode, i);
 					
 					break;
 				case 1:
@@ -281,7 +285,9 @@ int irda_get_shoot_info(u16 *charcode, s8 *head_shoot)
 			ret = 3;
 		} 
 	}
-		
+	
+	if (ret > 0)
+		err_log("ret %d charcode %x head_shot %d\r\n", ret, *charcode, *head_shoot);
 	return ret;
 }
 
@@ -298,7 +304,7 @@ void IrDA_init(void)
 		if (IrDA_Reads((RECV_MOD_SA_BASE + i) << 1, I2C_OP_CODE_GET_INFO, (u8 *)&info, 3) != 0) {
 			recv_offline_map |= 1 << i;
 		} else if (IrDA_led(i, 0xf0, 1) != 0)
-			printf("err\n");
+			err_log("err\n");
 	}
 	
 	msleep(500);

@@ -222,7 +222,6 @@ s16 key_get_blod(void)
 s16 key_get_bulet(void)
 {
 	s16 ret = (s16)char2u32_16(gen_key.bulet, sizeof(gen_key.bulet));
-	int2chars_16(gen_key.bulet, 0, sizeof(gen_key.bulet));
 	
 	return ret;
 }
@@ -292,10 +291,15 @@ void key_init(void)
 			
 			read_key_from_eeprom();
 
-#if 		defined(CLOTHE)	
+#if 		defined(CLOTHE)
 			if (_key_get_blod() == 0) //即使是新的key，但是key里面没有钱(血量)
 				continue;
 #endif			
+
+#if 		defined(GUN)	
+			if (key_get_bulet() == 0)
+				continue;
+#endif
 			break;
 		}		
 		
