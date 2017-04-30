@@ -453,7 +453,7 @@ static void net_init(void)
 	
 	get_wifi_info(host, host_passwd);
 	
-	if (set_echo(1) < 0)
+	if (set_echo(0) < 0)
 		err_log("set_echo");
 	
 	if  (close_conn() < 0)
@@ -522,15 +522,10 @@ void main_loop(void)
 {
 	u32 cha5rcode;
 	s16 blod_bak;
-	int active_retry = 30;
+	int active_retry = 6;
 	int ret;
 	memset(&att_info, '0', sizeof(att_info));
 	att_info.cnt = 0;
-	
-#if 1	
-	
-retry:	
-	active_retry = 30;
 	
 	key_init();
 	
@@ -544,14 +539,14 @@ retry:
 		
 	while (offline_mode == 0 && !actived && --active_retry) {
 		active_request();
+		err_log("retry %d\r\n", active_retry);
 		sleep(2);
 	}
 	
 	if (active_retry == 0)
-		goto retry;
+		offline_mode = 1;
 	
 	upload_ip_info();
-#endif
 	
 	green_led_on();
 	
