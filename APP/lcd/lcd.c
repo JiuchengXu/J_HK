@@ -143,6 +143,8 @@ static void recv_host_handler(char *buf, u16 len)
 		else
 			enable_offline(0);
 		
+		err_log("work in offline\r\n");
+		
 	} else if (packType == MESSAGE_TYPE) {
 		struct MsgPkg *msg = (void *)buf;
 		struct statistic_info info;
@@ -265,6 +267,7 @@ static int net_init(void)
 		
 	char host[20] = "CSsub", host_passwd[20] = "12345678", \
 	    ip[16];
+	int timeout = 5;
 		
 	// ip最后一位作为一个标识
 	key_get_ip_suffix(&host[5]);
@@ -291,9 +294,16 @@ static int net_init(void)
 	
 	prog_val = 40;
 			
-	if (connect_ap(host, host_passwd, 3) < 0) {
-		err_log("connect_ap");
-		return -1;
+	while (1) {
+		if (connect_ap(host, host_passwd, 3) < 0) {
+			err_log("connect_ap");
+			//return -1;
+			timeout--;
+		} else
+			break;
+		
+		if (timeout == 0)
+			return -1;
 	}
 	
 	prog_val = 50;
@@ -354,34 +364,34 @@ static void update_iterm_task(void)
 void start_net_init_task(void)
 {
 	OS_ERR err;
-		
-    OSTaskCreate((OS_TCB *)&progbarTaskStkTCB, 
-            (CPU_CHAR *)"net reciv task", 
-            (OS_TASK_PTR)net_init, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_RECV_PRIO, 
-            (CPU_STK *)&progbarTaskStk[0], 
-            (CPU_STK_SIZE)128/10, 
-            (CPU_STK_SIZE)128, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);
-	
-    OSTaskCreate((OS_TCB *)&iterm_task_tcb, 
-            (CPU_CHAR *)"iterm task", 
-            (OS_TASK_PTR)update_iterm_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_TIMER_PRIO, 
-            (CPU_STK *)&iterm_task_stk[0], 
-            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)ITERM_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);					
+
+	OSTaskCreate((OS_TCB *)&progbarTaskStkTCB, 
+			(CPU_CHAR *)"net reciv task", 
+			(OS_TASK_PTR)net_init, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_RECV_PRIO, 
+			(CPU_STK *)&progbarTaskStk[0], 
+			(CPU_STK_SIZE)128/10, 
+			(CPU_STK_SIZE)128, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);
+
+	OSTaskCreate((OS_TCB *)&iterm_task_tcb, 
+			(CPU_CHAR *)"iterm task", 
+			(OS_TASK_PTR)update_iterm_task, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_TIMER_PRIO, 
+			(CPU_STK *)&iterm_task_stk[0], 
+			(CPU_STK_SIZE)ITERM_TASK_STACK_SIZE/10, 
+			(CPU_STK_SIZE)ITERM_TASK_STACK_SIZE, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);					
 }
 
 void main_loop(void)
@@ -450,7 +460,7 @@ retry:
 	
 	ok_notice();
 	
-	watch_dog_feed_task_init();
+	//watch_dog_feed_task_init();
 						
 	while (1) {
 		int key_val = get_keyboard_value();

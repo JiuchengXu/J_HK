@@ -92,8 +92,8 @@ int IrDA_led(int id, int color, int on)
 	
 	ret = IrDA_Reads((RECV_MOD_SA_BASE + id) << 1, I2C_OP_CODE_SET_LEDS | led_local[id], (u8 *)&status, 3);
 	
-	if (ret != 0)
-		broken_cnt[id]++;
+	//if (ret != 0)
+	//	broken_cnt[id]++;
 	
 	if (broken_cnt[id] == 10000) {
 		while (1) {
@@ -137,25 +137,49 @@ int clothe_led_on_then_off(int side, int color, int time)
 		for (i = 2; i < 5; i++)
 			IrDA_led(i, color, 1);
 		
-		OSTmrStart(&timer[0], &err);
+//		OSTmrStart(&timer[0], &err);
 		
 	} else if (side == 2) {
 		for (i = 0; i < 2; i++)
 			IrDA_led(i, color, 1);
 		
-		OSTmrStart(&timer[1], &err);
+//		OSTmrStart(&timer[1], &err);
 		
 	} else if (side == 3) {
 		for (i = 5; i < 8; i++)
 			IrDA_led(i, color, 1);
 		
-		OSTmrStart(&timer[2], &err);
+//		OSTmrStart(&timer[2], &err);
 	}	
 	
-	if (err == OS_ERR_NONE)
-		return 0;
+//	if (err == OS_ERR_NONE)
+//		return 0;
 
-	return -1;
+	msleep(500);
+
+	if (side == 1) {
+		for (i = 2; i < 5; i++)
+			IrDA_led(i, color, 0);
+		
+//		OSTmrStart(&timer[0], &err);
+		
+	} else if (side == 2) {
+		for (i = 0; i < 2; i++)
+			IrDA_led(i, color, 0);
+		
+//		OSTmrStart(&timer[1], &err);
+		
+	} else if (side == 3) {
+		for (i = 5; i < 8; i++)
+			IrDA_led(i, color, 0);
+		
+//		OSTmrStart(&timer[2], &err);
+	}	
+
+	return 0;
+
+
+	//return -1;
 }
 
 void clear_receive(void)
@@ -202,9 +226,9 @@ void clothe_led(char *s, int on)
 	else
 		return;
 	
-	OSTmrStop(&timer[0], OS_OPT_TMR_NONE, NULL, &err);
-	OSTmrStop(&timer[1], OS_OPT_TMR_NONE, NULL, &err);
-	OSTmrStop(&timer[2], OS_OPT_TMR_NONE, NULL, &err);
+	//OSTmrStop(&timer[0], OS_OPT_TMR_NONE, NULL, &err);
+	//OSTmrStop(&timer[1], OS_OPT_TMR_NONE, NULL, &err);
+	//OSTmrStop(&timer[2], OS_OPT_TMR_NONE, NULL, &err);
 	
 	for (i = 0; i < CLOTHE_RECEIVE_MODULE_NUMBER; i++)
 		IrDA_led(i, color, on);
@@ -313,8 +337,8 @@ void IrDA_init(void)
 		IrDA_led(i, 0xf0, 0);
 	}
 	
-	for (i = 0; i < 3; i++)
-		OSTmrCreate(&timer[i], "led timer", 5, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)clothe_led_off, (void *)i, &err);
+//	for (i = 0; i < 3; i++)
+//		OSTmrCreate(&timer[i], "led timer", 5, 0, OS_OPT_TMR_ONE_SHOT, (OS_TMR_CALLBACK_PTR)clothe_led_off, (void *)i, &err);
 	
 	mutex_init(&lock);
 }	

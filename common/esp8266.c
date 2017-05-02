@@ -81,20 +81,29 @@ void bus_recieve_string(char *buf)
 
 static s8 wait_for_return(void)
 {
-	int timeout = 3000;
+	int timeout = 6000;
 	char priv_char;
+	int ret = 0;
+	
+	//err_log("wait start\r\n");
 	
 	while (timeout) {	
 		char c = wifi_uart_recieve1();
 			
-		if (priv_char == 'O' && c == 'K')
-			return 0;
+		if (priv_char == 'O' && c == 'K') {
+			ret = 0;
+			break;
+		}
 		
-		if (priv_char == 'E' && c == 'R')
-			return 0;
+		if (priv_char == 'E' && c == 'R') {
+			ret = 0;
+			break;
+		}
 		
-		if (priv_char == 'F' && c == 'A')
-			return -1;
+		if (priv_char == 'F' && c == 'A') {
+			ret = -1;
+			break;
+		}
 		
 		if (c == '\0') {
 			msleep(10);
@@ -102,8 +111,10 @@ static s8 wait_for_return(void)
 		} else
 			priv_char = c;					
 	}
+	
+	//err_log("wait timeout %d\r\n", ret);
 
-	return -1;
+	return ret;
 }
 
 static s8 exe_cmd(char *cmd)
@@ -121,6 +132,7 @@ static s8 exe_cmd(char *cmd)
 
 s8 get_ip(void)
 {
+	err_log("%s %d\r\n", __func__, __LINE__);
 	sprintf(temp, "AT+CIFSR\r\n");
 	return exe_cmd(temp);	
 }
@@ -128,53 +140,62 @@ s8 get_ip(void)
 s8 set_mode(u8 mode)
 {
 	sprintf(temp, "AT+CWMODE=%d\r\n", mode);	
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_show_ip(int mode)
 {
 	sprintf(temp, "AT+CIPDINFO=%d\r\n", mode);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 connect_ap(char *id, char *passwd, s8 channel)
 {		
 	sprintf(temp, "AT+CWJAP=\"%s\",\"%s\"\r\n", id, passwd);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_mac_addr(void)
 {
 	sprintf(temp, "AT+CIPSTAMAC=\"18:fe:35:98:d3:7b\"\r\n");
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_auto_conn(u8 i)
 {
 	sprintf(temp, "AT+CWAUTOCONN=%d\r\n", i);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);	
 }
 s8 close_conn(void)
 {
 	sprintf(temp, "AT+CWQAP\r\n");
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_RF_power(s8 v)
 {
 	sprintf(temp, "AT+RFPOWER=%d\r\n", v);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_ap(char *sid, char *passwd)
 {
 	sprintf(temp, "AT+CWSAP=\"%s\",\"%s\",5,3,4\r\n", sid, passwd);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_dhcp(void)
 {
 	sprintf(temp, "AT+CWDHCP=1,1\r\n");
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
@@ -182,12 +203,14 @@ s8 set_echo(s8 on)
 {
 	reset_buffer();	
 	sprintf(temp, "ATE%d\r\n", on);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
 s8 set_mux(s8 mode)
 {
 	sprintf(temp, "AT+CIPMUX=%d\r\n", mode);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);	
 }
 
@@ -205,7 +228,7 @@ s8 udp_setup(u32 ip, u16 remote_port, u16 local_port)
 	ip_map[gID].local_port = local_port;
 	
 	sprintf(temp, "AT+CIPSTART=%d,\"UDP\",\"%s\",%d,%d\r\n", gID++, ip_str, remote_port, local_port);
-	
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
 }
 
@@ -214,7 +237,7 @@ void ping(u32 ip)
 	char ip_str[16];
 	int timeout = 500;
 	char priv_char;
-	
+
 	sprintf(ip_str, "%d.%d.%d.%d", ip >> 24, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip &0xff);
 	
 	sprintf(temp, "AT+PING=\"%s\"\r\n", ip_str);
@@ -235,6 +258,8 @@ void ping(u32 ip)
 		} else
 			priv_char = c;						
 	}
+	
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	
 	msleep(100);
 }
@@ -262,7 +287,7 @@ s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
 	u8 id = get_id(ip, src_port, dst_port);
 	int timeout, ret = -1;
 	char priv_char;
-	
+
 	sprintf(temp, "AT+CIPSEND=%d,%d\r\n", id, len);
 		
 	mutex_lock(&lock);
@@ -309,6 +334,8 @@ s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
 	}
 out:	
 	mutex_unlock(&lock);
+	
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	
 	return ret;
 }
@@ -392,18 +419,21 @@ s8 udp_close(u8 id)
 	if (ret == 0 && gID > 0) 
 		gID--;
 	
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return ret;
 }
 
 s8 set_ip(char *ip)
 {
 	sprintf(temp, "AT+CIPSTA=\"%s\"\r\n", ip);
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);	
 }
 
 s8 set_bound(void)
 {
 	sprintf(temp, "AT+UART=115200,8,1,0,0\r\n");
+	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);	
 }
 

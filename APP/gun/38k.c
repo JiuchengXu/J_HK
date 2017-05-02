@@ -3,7 +3,7 @@
 
 #ifdef GUN
 static DMA_InitTypeDef DMA_InitStructure;
-static u8 send_buf[4] = {0x55, 0, 0, 0};
+static u8 send_buf[5] = {0xff, 0x5a, 0, 0, 0};
 
 void TIM5_PWM_Init(u16 arr,u16 psc)
 {  
@@ -142,18 +142,17 @@ void send_charcode(u16 code)
 	//printf("#%04x\r\n", code);
 	
 	TIM_Cmd(TIM5, ENABLE);	
-#if 0	
-	send_buf[1] = c1;
-	send_buf[2] = c2;
+
+#if 1	
+	send_buf[2] = c1;
+	send_buf[3] = c2;
 	
 	DMA_Init(DMA2_Channel5, &DMA_InitStructure);
 	
 	DMA_Cmd(DMA2_Channel5, ENABLE); 
 #else	
 	
-	//uart4_putchar(0xff);
 	uart4_putchar(0xff);
-	//uart4_putchar(0x00);
 	uart4_putchar(0x5a);
 	uart4_putchar(c1);
 	uart4_putchar(c2);

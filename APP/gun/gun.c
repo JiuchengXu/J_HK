@@ -42,7 +42,7 @@ static s8 actived;
 static u16 packageID = 0;
 static s16 local_bulet = 100;
 static char g_host[20] = "CSsub", g_host_passwd[20] = "12345678";
-	
+
 extern s8 trigger_handle(u16 charcode, int);
 extern void key_get_ip_suffix(char *s);
 extern void key_get_sn(char *s);
@@ -67,27 +67,27 @@ static s8 sendto_lcd(char *buf, u16 len)
 static int active_request(void)
 {
 	struct ActiveRequestData data;
-	
+
 	INT2CHAR(data.transMod, 0);
 	INT2CHAR(data.packTye, ACTIVE_REQUEST_TYPE);
 	key_get_sn(data.keySN);
 	INT2CHAR(data.packageID, packageID++);
-	
+
 	return sendto_host((char *)&data, sizeof(data));
 }
 
 static int upload_lcd(u8 msg_type, u16 value)
 {
 	struct LcdStatusData data;
-	
+
 	memset(&data, '0', sizeof(data));
-	
+
 	INT2CHAR(data.transMod, 0);
 	INT2CHAR(data.packTye, LCD_MSG);
-	
+
 	INT2CHAR(data.msg_type, msg_type);
 	INT2CHAR(data.msg_value, value);
-	
+
 	sendto_lcd((char *)&data, sizeof(data));
 }
 
@@ -99,25 +99,25 @@ static int get_deviceSubType(void)
 static int upload_status_data(void)
 {
 	struct GunStatusData data;
-	
+
 	memset(&data, '0', sizeof(data));
-	
+
 	INT2CHAR(data.transMod, 0);
 	INT2CHAR(data.packTye, GUN_STATUS_TYPE);
 	INT2CHAR(data.packageID, packageID++);
 	INT2CHAR(data.deviceType, 1);
 	INT2CHAR(data.deviceSubType, get_deviceSubType());
-	
+
 	//memcpy(data.deviceSN, "0987654321abcdef", sizeof(data.deviceSN));
 	INT2CHAR(data.bulletLeft, local_bulet);
 	key_get_sn(data.keySN);
 	INT2CHAR(data.characCode, characCode);
 
 	INT2CHAR(data.PowerLeft, get_power());
-	
+
 	upload_lcd(LCD_GUN_BULLET, local_bulet);
 	msleep(20);
-	
+
 	return sendto_host((char *)&data, sizeof(data));
 }
 
@@ -130,14 +130,14 @@ static int power_status_data(void)
 static int upload_heartbeat(void)
 {
 	struct HeartBeat data;
-	
+
 	INT2CHAR(data.transMod, 0);
 	INT2CHAR(data.packTye, HEART_BEAT_TYPE);
 	INT2CHAR(data.packageID, packageID++);
 	INT2CHAR(data.deviceType, 1);
 	INT2CHAR(data.deviceSubType, get_deviceSubType());
 	key_get_sn(data.deviceSN);
-	
+
 	return sendto_host((char *)&data, sizeof(data));
 }
 
@@ -150,9 +150,9 @@ static void recv_host_handler(char *buf, u16 len)
 {
 	struct ActiveAskData *data = (void *)buf;
 	u32 packTye;
-	
+
 	packTye = char2u32_16(data->packTye, sizeof(data->packTye));
-	
+
 	if (packTye == ACTIVE_RESPONSE_TYPE) {
 		characCode = (u16)char2u32_16(data->characCode, sizeof(data->characCode));
 		actived = 1;
@@ -177,7 +177,7 @@ static void recv_task(void)
 	u32 ip;
 	u16 remote_port;
 	u16 len;
-	
+
 	while (1) {
 		recv_data(&ip, &remote_port, recv_buf, &len);
 		switch (ip) {
@@ -196,7 +196,7 @@ static void recv_task(void)
 		}
 	}
 }
- 
+
 static void power_status_task(void)
 {
 	while (1) {	
@@ -204,26 +204,27 @@ static void power_status_task(void)
 		power_status_data();
 	}	
 }
-	
+
 static int net_init(void)
 {
 	u8 i;
 	char host[20] = "CSsub", host_passwd[20] = "12345678", \
-	    ip[16];
+			 ip[16];
 	int ret = -1;
-	
+	int timeout = 5;
+
 	// ip最后一位作为一个标识
 	key_get_ip_suffix(&host[5]);
-	
+
 	strcpy(g_host, host);
-	
+
 	sprintf(ip, "192.168.4.%d", GUN_IP & 0xff);
-	
+
 	if (set_auto_conn(0) < 0) {
 		err_log("set_echo");
 		return -1;
 	}
-	
+
 	if  (close_conn() < 0) {
 		err_log("set_echo");
 		return -1;
@@ -233,41 +234,48 @@ static int net_init(void)
 		err_log("set_echo");
 		return -1;
 	}
-	
+
 	if (set_mode(1) < 0) {
 		err_log("set_mode");
 		return -1;
 	}
-	
-	if (connect_ap(host, host_passwd, 3) < 0) {
-		err_log("connect_ap");
-		return -1;
+
+	while (1) {
+		if (connect_ap(host, host_passwd, 3) < 0) {
+			err_log("connect_ap");
+			//return -1;
+			timeout--;
+		} else
+			break;
+		
+		if (timeout == 0)
+			return -1;
 	}
-	
+
 	if (set_ip(ip) < 0) {
 		err_log("set_ip");
 		return -1;
 	}
-		
+
 	if (set_mux(1) < 0) {
 		err_log("set_mux");
 		return -1;
 	}
-	
+
 	for (i = 0; i < 4; i++)
 		udp_close(i);
-	
+
 	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
 		err_log("");
-	
+
 	//if (udp_setup(GUN_IP, GUN_PORT, GUN_PORT) < 0)
 	//	err_log("");
-	
+
 	if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
 		err_log("");
-	
+
 	ping(LCD_IP);
-	
+
 	return 0;
 }
 
@@ -276,100 +284,100 @@ static int net_reinit(void)
 	u8 i;
 	OS_ERR err;
 	char host[20] = "CSsub", host_passwd[20] = "12345678", \
-	    ip[16];
-	
+			 ip[16];
+
 	// ip禺鄢一位胤为一俣要识
 	key_get_ip_suffix(&host[5]);
-	
+
 	if (strcmp(host, g_host) == 0)
 		goto out;
-	
+
 	OSTaskSuspend((OS_TCB *)&RecvTaskStkTCB, &err);
 	OSTaskSuspend((OS_TCB *)&HBTaskStkTCB, &err);
-	
+
 	actived = 0;
-	
+
 	sprintf(ip, "192.168.4.%d", GUN_IP & 0xff);
-	
+
 	if (set_auto_conn(0) < 0)
 		err_log("set_echo");
-	
+
 	if  (close_conn() < 0)
 		err_log("set_echo");
 
 	if (set_echo(1) < 0)
 		err_log("set_echo");
-	
+
 	if (set_mode(1) < 0)
 		err_log("set_mode");
-	
+
 	if (connect_ap(host, host_passwd, 3) < 0) {
 		err_log("connect_ap");
 		return -1;
 	}
-	
+
 	if (set_ip(ip) < 0)
 		err_log("set_ip");
-		
+
 	if (set_mux(1) < 0)
 		err_log("set_mux");
-	
+
 	for (i = 0; i < 4; i++)
 		udp_close(i);
-	
+
 	if (udp_setup(HOST_IP, HOST_PORT, HOST_PORT) < 0)
 		err_log("");
-	
+
 	if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
 		err_log("");
-	
+
 	ping(LCD_IP);
-		
+
 	OSTaskResume((OS_TCB *)&RecvTaskStkTCB, &err);
 	OSTaskResume((OS_TCB *)&HBTaskStkTCB, &err);
-		
+
 	while (!actived) {
 		active_request();
 		sleep(2);
 	}
-	
+
 out:
 	actived = 1;
-	
+
 	return 0;
 }
 
 static void start_gun_tasks(void)
 {
 	OS_ERR err;
-	
-    OSTaskCreate((OS_TCB *)&RecvTaskStkTCB, 
-            (CPU_CHAR *)"net reciv task", 
-            (OS_TASK_PTR)recv_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_RECV_PRIO, 
-            (CPU_STK *)&RecvTaskStk[0], 
-            (CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);	
-				
-    OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
-            (CPU_CHAR *)"heart beat task", 
-            (OS_TASK_PTR)power_status_task, 
-            (void * )0, 
-            (OS_PRIO)OS_TASK_HB_PRIO, 
-            (CPU_STK *)&HBTaskStk[0], 
-            (CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE/10, 
-            (CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE, 
-            (OS_MSG_QTY) 0, 
-            (OS_TICK) 0, 
-            (void *)0,
-            (OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-            (OS_ERR*)&err);
+
+	OSTaskCreate((OS_TCB *)&RecvTaskStkTCB, 
+			(CPU_CHAR *)"net reciv task", 
+			(OS_TASK_PTR)recv_task, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_RECV_PRIO, 
+			(CPU_STK *)&RecvTaskStk[0], 
+			(CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE/10, 
+			(CPU_STK_SIZE)OS_RECV_TASK_STACK_SIZE, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);	
+
+	OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
+			(CPU_CHAR *)"power status task", 
+			(OS_TASK_PTR)power_status_task, 
+			(void * )0, 
+			(OS_PRIO)OS_TASK_POWER_PRIO, 
+			(CPU_STK *)&HBTaskStk[0], 
+			(CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE/10, 
+			(CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE, 
+			(OS_MSG_QTY) 0, 
+			(OS_TICK) 0, 
+			(void *)0,
+			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+			(OS_ERR*)&err);
 }
 
 s8 get_actived_state(void)
@@ -381,11 +389,11 @@ static void key_insert_handle(void)
 {
 	if (net_reinit() < 0)
 		NVIC_SystemReset();
-	
+
 	ok_notice();	
-	
+
 	local_bulet += key_get_bulet();
-		
+
 	upload_status_data();
 }
 
@@ -396,81 +404,81 @@ void main_loop(void)
 	int active_retry = 30;
 	s8 bulet_one_bolt = 0;
 	s8 mode, status = 0;
-	
+
 	blue_led_on();	
-	
+
 #if 1
 retry:	
 	active_retry = 30;
-	
+
 	key_init();
-	
+
 	local_bulet = key_get_bulet();
-	
+
 	blue_led_on();
-	
+
 	if (net_init() < 0)
 		goto retry;
-					
+
 	start_gun_tasks();
-	
+
 	while (!actived && --active_retry) {
 		active_request();
 		sleep(2);
 	}
-	
+
 	if (active_retry == 0)
 		goto retry;
 #endif	
-	
+
 	upload_status_data();
-	
+
 	ok_notice();
-	
+
 	//watch_dog_feed_task_init();
-	
+
 	err_log("actived is %d\r\n", actived);
-	
+
 	while (1) {		
 		if (key_get_fresh_status())
-				key_insert_handle();
-		
+			key_insert_handle();
+
 		if (actived) {	
 			if (check_pull_bolt() > 0) {
 				play_bolt();
-				
+
 				err_log("press bolt\r\n");
-				
+
 				msleep(100);
-				
+
 				if (bulet_one_bolt > 0 && (30 - bulet_one_bolt) > local_bulet)
 					bulet_one_bolt += local_bulet;
 				else
 					bulet_one_bolt = 30;
 			}
-			
+
 			mode = get_mode();
-			
+
 			if (is_single_mode(mode) && bulet_one_bolt > 0) {
 				s8 a = trigger_get_status();
-					
+
 				switch (a) {
 					case 1 :
 						if (status == 0) {
 							play_bulet();
-							
-							
+
+
 							send_charcode(characCode);
 
 							err_log("press trigger\r\n");
-							
+
 							status = 1;
-							
+
 							bulet_one_bolt--;
 							local_bulet--;
-							
+
 							upload_status_data();
-							
+
 							msleep(500);
 						}
 						break;
@@ -483,8 +491,8 @@ retry:
 			} else if (is_auto_mode(mode) && bulet_one_bolt > 0) {
 				if (trigger_get_status()) {
 					wav_play(2);
-					
-						
+
+
 					for (i = 0; i < 4 && bulet_one_bolt > 0; i++) {
 						send_charcode(characCode);
 						msleep(200);
@@ -493,27 +501,27 @@ retry:
 					}
 
 					err_log("press trigger\r\n");
-					
+
 					upload_status_data();
-					
+
 				}
 			}
-				
+
 			if (local_bulet <= 0) {
 				local_bulet = 0;
 				actived = 0;
 				err_log("local bulet is 0\r\n");
 			}
-			
+
 			if (bulet_one_bolt <= 0)
 				bulet_one_bolt = 0;
 		}	
-		
+
 		if (actived && bulet_one_bolt > 0 && mode != 0)
 			green_led_on();
 		else
 			blue_led_on();			
-		
+
 		msleep(100);
 	}
 }

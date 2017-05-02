@@ -423,10 +423,10 @@ static void start_clothe_tasks(void)
 			(OS_ERR*)&err);	
 
 	OSTaskCreate((OS_TCB *)&HBTaskStkTCB, 
-			(CPU_CHAR *)"heart beat task", 
+			(CPU_CHAR *)"power status task", 
 			(OS_TASK_PTR)power_status_task, 
 			(void * )0, 
-			(OS_PRIO)OS_TASK_HB_PRIO, 
+			(OS_PRIO)OS_TASK_POWER_PRIO, 
 			(CPU_STK *)&HBTaskStk[0], 
 			(CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE/10, 
 			(CPU_STK_SIZE)OS_HB_TASK_STACK_SIZE, 
@@ -500,6 +500,8 @@ static void net_init(void)
 	if (udp_setup(LCD_IP, LCD_PORT, LCD_PORT) < 0)
 		err_log("");
 	
+	ping(HOST_IP);
+	
 	get_ip();
 }
 
@@ -551,10 +553,12 @@ void main_loop(void)
 	green_led_on();
 	
 	ok_notice();	
-	
+
 	upload_status_data();
 	
 	watch_dog_feed_task_init();
+
+	clear_receive();
 	
 	while (1) {	
 		recheck:		
@@ -604,8 +608,8 @@ void main_loop(void)
 					//clothe_led("all", 1);
 				}
 			} else {
-				upload_status_data();
 				clothe_led_on_then_off(ret, 0xf0, 1);				
+				upload_status_data();
 			}
 			
 			if (ret > 0)
@@ -622,12 +626,7 @@ void main_loop(void)
 			upload_status_data();			
 		}
 		
-	//	if (blod != blod_bak)
-		//	upload_status_data();
-		
-	//	blod_bak = blod;
-		
-		msleep(150);
+		msleep(250);
 	}	
 }
 #endif
