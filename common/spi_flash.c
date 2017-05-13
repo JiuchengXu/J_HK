@@ -60,7 +60,7 @@ void SPI3_init(void)
 
 	/* Deselect the FLASH: Chip Select high */
 	//NotSelect_Flash();
-Select_Flash();
+	Select_Flash();
 	/* SPI3 configuration */ 
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
@@ -92,26 +92,26 @@ int32_t SPIFLASH_disk_initialize(void)
 uint8_t spi_write_byte(uint8_t data)
 {
 	int timeout = 7200;
-	
+
 	/*u32 Count = 0;*/
-  /* Loop while DR register in not emplty */
-  while(SPI_I2S_GetFlagStatus(SPI3, SPI_I2S_FLAG_TXE) == RESET);
+	/* Loop while DR register in not emplty */
+	while(SPI_I2S_GetFlagStatus(SPI3, SPI_I2S_FLAG_TXE) == RESET);
 
-  /* Send byte through the SPI3 peripheral */
-  SPI_I2S_SendData(SPI3, data);
+	/* Send byte through the SPI3 peripheral */
+	SPI_I2S_SendData(SPI3, data);
 
-  /* Wait to receive a byte */
-  while(SPI_I2S_GetFlagStatus(SPI3, SPI_I2S_FLAG_RXNE) == RESET && --timeout);
- 
+	/* Wait to receive a byte */
+	while(SPI_I2S_GetFlagStatus(SPI3, SPI_I2S_FLAG_RXNE) == RESET && --timeout);
 
-  /* Return the byte read from the SPI bus */
-  return SPI_I2S_ReceiveData(SPI3);
+
+	/* Return the byte read from the SPI bus */
+	return SPI_I2S_ReceiveData(SPI3);
 }
 
 
 uint8_t spi_read_byte(void)
 {
-  return (spi_write_byte(Dummy_Byte));
+	return (spi_write_byte(Dummy_Byte));
 }
 
 void flash_write_enable(void)
@@ -135,11 +135,11 @@ void FlashWaitBusy(void)
 	while (1) {
 		Select_Flash();
 		spi_write_byte(W25X_ReadStatusReg);    //???????????     
-	
+
 		val = spi_read_byte() & 0x01;
-		
+
 		NotSelect_Flash();
-		
+
 		if (val != 0x01)
 			break;
 	}
@@ -148,17 +148,17 @@ void FlashWaitBusy(void)
 void FlashWEL(void)
 {
 	u8 val;
-	
+
 	flash_write_enable();
-	
+
 	while (1) {
 		Select_Flash();
 		spi_write_byte(W25X_ReadStatusReg);    //???????????     
-		
+
 		val = spi_read_byte() & 0x02;
-		
+
 		NotSelect_Flash();
-		
+
 		if (val & 0x02)
 			break;
 	}
@@ -172,21 +172,21 @@ void flash_page_read(uint32_t page, uint8_t *data)
 	u32 ReadAddr = page * FLASH_PAGE_SIZE;
 
 	OSSchedLock(&err);
-	
+
 	FlashWaitBusy();
-	
+
 	Select_Flash();	
-	
-    spi_write_byte(W25X_ReadData);         //??????   
-    spi_write_byte((u8)((ReadAddr)>>16));  //??24bit??    
-    spi_write_byte((u8)((ReadAddr)>>8));   
-    spi_write_byte((u8)ReadAddr);   
-	
-    for(i = 0; i < FLASH_PAGE_SIZE; i++)
-        data[i] = spi_read_byte();   //????  
-	
+
+	spi_write_byte(W25X_ReadData);         //??????   
+	spi_write_byte((u8)((ReadAddr)>>16));  //??24bit??    
+	spi_write_byte((u8)((ReadAddr)>>8));   
+	spi_write_byte((u8)ReadAddr);   
+
+	for(i = 0; i < FLASH_PAGE_SIZE; i++)
+		data[i] = spi_read_byte();   //????  
+
 	NotSelect_Flash();
-	
+
 	OSSchedUnlock(&err);
 }
 
@@ -204,21 +204,21 @@ void flash_bytes_read(u32 addr, u8 *buf, u16 len)
 	u32 ReadAddr = addr;
 
 	FlashWaitBusy();
-	
+
 	Select_Flash();	
-	
+
 	OSSchedLock(&err);
-	
-    spi_write_byte(W25X_ReadData);         //??????   
-    spi_write_byte((u8)((ReadAddr)>>16));  //??24bit??    
-    spi_write_byte((u8)((ReadAddr)>>8));   
-    spi_write_byte((u8)ReadAddr);   
-	
-    for(i = 0; i < len; i++)
-        buf[i] = spi_read_byte() * voice_value;   //????  
-	
+
+	spi_write_byte(W25X_ReadData);         //??????   
+	spi_write_byte((u8)((ReadAddr)>>16));  //??24bit??    
+	spi_write_byte((u8)((ReadAddr)>>8));   
+	spi_write_byte((u8)ReadAddr);   
+
+	for(i = 0; i < len; i++)
+		buf[i] = spi_read_byte() * voice_value;   //????  
+
 	OSSchedUnlock(&err);
-	
+
 	NotSelect_Flash();	
 }
 
@@ -228,15 +228,15 @@ void flash_page_write(uint32_t page, uint8_t *data)
 	u32 WriteAddr = page * FLASH_PAGE_SIZE;
 
 	FlashWEL();
-	
+
 	FLASH_CS_0();
 
-    spi_write_byte(W25X_PageProgram);      //??????   
-    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
-    spi_write_byte((u8)((WriteAddr)>>8));   
-    spi_write_byte((u8)WriteAddr);   
-	
-    for(i = 0; i < FLASH_PAGE_SIZE; i++)
+	spi_write_byte(W25X_PageProgram);      //??????   
+	spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+	spi_write_byte((u8)((WriteAddr)>>8));   
+	spi_write_byte((u8)WriteAddr);   
+
+	for(i = 0; i < FLASH_PAGE_SIZE; i++)
 		spi_write_byte(data[i]);
 
 	FLASH_CS_1();
@@ -250,15 +250,15 @@ void flash_page_write_addr(uint32_t addr, uint8_t *data)
 	u32 WriteAddr = addr;
 
 	FlashWEL();
-	
+
 	FLASH_CS_0();
 
-    spi_write_byte(W25X_PageProgram);      //??????   
-    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
-    spi_write_byte((u8)((WriteAddr)>>8));   
-    spi_write_byte((u8)0);   
-	
-    for(i = 0; i < FLASH_PAGE_SIZE; i++)
+	spi_write_byte(W25X_PageProgram);      //??????   
+	spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+	spi_write_byte((u8)((WriteAddr)>>8));   
+	spi_write_byte((u8)0);   
+
+	for(i = 0; i < FLASH_PAGE_SIZE; i++)
 		spi_write_byte(data[i]);
 
 	FLASH_CS_1();
@@ -268,33 +268,33 @@ void flash_page_write_addr(uint32_t addr, uint8_t *data)
 void flash_sector_erase(uint32_t WriteAddr)
 {
 	FlashWEL();
-	
+
 	FLASH_CS_0();
-	
-    spi_write_byte(W25X_SectorErase);      //??????   
-    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
-    spi_write_byte((u8)((WriteAddr)>>8));   
-    spi_write_byte((u8)WriteAddr);   	
-	
+
+	spi_write_byte(W25X_SectorErase);      //??????   
+	spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+	spi_write_byte((u8)((WriteAddr)>>8));   
+	spi_write_byte((u8)WriteAddr);   	
+
 	FLASH_CS_1();
 	msleep(100);
-	
+
 	FlashWaitBusy();	
 }
 
 void flash_block_erase32k(uint32_t WriteAddr)
 {
 	FlashWEL();
-	
+
 	FLASH_CS_0();
-	
-    spi_write_byte(W25X_32K_BlockErase);      //??????   
-    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
-    spi_write_byte((u8)((WriteAddr)>>8));   
-    spi_write_byte((u8)WriteAddr);   	
-	
+
+	spi_write_byte(W25X_32K_BlockErase);      //??????   
+	spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+	spi_write_byte((u8)((WriteAddr)>>8));   
+	spi_write_byte((u8)WriteAddr);   	
+
 	FLASH_CS_1();
-	
+
 	msleep(120);
 	FlashWaitBusy();
 }
@@ -302,16 +302,16 @@ void flash_block_erase32k(uint32_t WriteAddr)
 void flash_block_erase64k(uint32_t WriteAddr)
 {
 	FlashWEL();
-	
+
 	FLASH_CS_0();
-	
-    spi_write_byte(W25X_64K_BlockErase);      //??????   
-    spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
-    spi_write_byte((u8)((WriteAddr)>>8));   
-    spi_write_byte((u8)WriteAddr);   	
-	
+
+	spi_write_byte(W25X_64K_BlockErase);      //??????   
+	spi_write_byte((u8)((WriteAddr)>>16)); //??24bit??    
+	spi_write_byte((u8)((WriteAddr)>>8));   
+	spi_write_byte((u8)WriteAddr);   	
+
 	FLASH_CS_1();
-	
+
 	msleep(150);
 	FlashWaitBusy();
 }
@@ -319,9 +319,9 @@ void flash_block_erase64k(uint32_t WriteAddr)
 void flash_erase(uint32_t addr, int len)
 {	
 	int i;
-	
+
 	len = len / (64 * 1024 - 1) + 1;
-	
+
 	for (i = 0; i < len; i++)
 		flash_block_erase64k(addr + i * (64 * 1024));
 }
@@ -339,11 +339,11 @@ u32 get_page_size(void)
 void flash_chip_erase(void)
 {
 	FlashWEL();
-	
+
 	FLASH_CS_0();
-	
-    spi_write_byte(W25X_ChipErase);  
-  		
+
+	spi_write_byte(W25X_ChipErase);  
+
 	FLASH_CS_1();
 	FlashWaitBusy();	
 }
@@ -351,24 +351,24 @@ void flash_chip_erase(void)
 u32 SPI_FLASH_ReadDeviceID(void)
 {
 	u32 Temp = 0;
-	
+
 	/* Select the FLASH: Chip Select low */
 	Select_Flash();   //????,?????
-	
+
 	/* Send "RDID " instruction */
 	spi_write_byte(0x90);//??????ID,???????????ID?(??????) 0XAB
 	spi_write_byte(Dummy_Byte);     //??3???????,25X16????24??,??????????,?????????DEVICEID!
 	spi_write_byte(Dummy_Byte);
 	spi_write_byte(0);
-	
+
 	/* Read a byte from the FLASH */
 	Temp = spi_read_byte();
 	Temp <<= 8;
 	Temp |= spi_read_byte(); 
-	
+
 	/* Deselect the FLASH: Chip Select high */
 	NotSelect_Flash();
-	
+
 	return Temp;
 }
 
@@ -379,7 +379,7 @@ void spi_flash_test(void)
 {
 	//flash_sector_erase(0);
 	flash_erase(0, 1024 * 1024);
-	
+
 	flash_page_write(0, spi_data);
 	flash_bytes_read(0, spi_r_data, 256);
 }

@@ -60,22 +60,54 @@ extern void reset_buffer(void);
 extern void reset_rx_buffer1(void);
 extern u8 wifi_uart_recieve1(void);
 
-void bus_send_string(char *buf)
+static void update_esp8266(void)
+{
+	GPIO_WriteBit(ESP8266_DOWNLOAD, ESP8266_DOWNLOAD_PIN, Bit_RESET);
+}
+
+static void work_esp8266(void)
+{
+	GPIO_WriteBit(ESP8266_DOWNLOAD, ESP8266_DOWNLOAD_PIN, Bit_SET); //update pin IO0
+}
+
+static void enbale_esp8266(void)
+{
+	GPIO_WriteBit(ESP8266_ENABLE, ESP8266_ENABLE_PIN, Bit_SET);
+}
+
+static void disable_esp8266(void)
+{
+	GPIO_WriteBit(ESP8266_ENABLE, ESP8266_ENABLE_PIN, Bit_SET);
+}
+
+static void reset_esp8266(void)
+{
+	GPIO_WriteBit(ESP8266_GPIO15, ESP8266_GPIO15_PIN, Bit_RESET);
+	msleep(100);
+	GPIO_WriteBit(ESP8266_RST, ESP8266_RST_PIN, Bit_SET);
+	msleep(100);
+	GPIO_WriteBit(ESP8266_RST, ESP8266_RST_PIN, Bit_RESET);
+	msleep(300);
+	GPIO_WriteBit(ESP8266_RST, ESP8266_RST_PIN, Bit_SET);
+	msleep(100);
+}
+
+static void bus_send_string(char *buf)
 {
 	u16 i;
-	
+
 	reset_rx_buffer1();
-	
+
 	for (i = 0; buf[i] != '\0'; i++)
 		bus_send(&buf[i], 1);
 }
 
-void bus_recieve_string(char *buf)
+static void bus_recieve_string(char *buf)
 {
 	u16 i = 0;
-	
+
 	memset(output, 0, sizeof(output));
-	
+
 	while ((buf[i++] = bus_recieve()) != '\0');
 }
 
@@ -84,34 +116,34 @@ static s8 wait_for_return(void)
 	int timeout = 6000;
 	char priv_char;
 	int ret = 0;
-	
+
 	//err_log("wait start\r\n");
-	
+
 	while (timeout) {	
 		char c = wifi_uart_recieve1();
-			
+
 		if (priv_char == 'O' && c == 'K') {
 			ret = 0;
 			break;
 		}
-		
+
 		if (priv_char == 'E' && c == 'R') {
 			ret = 0;
 			break;
 		}
-		
+
 		if (priv_char == 'F' && c == 'A') {
 			ret = -1;
 			break;
 		}
-		
+
 		if (c == '\0') {
 			msleep(10);
 			timeout--;
 		} else
 			priv_char = c;					
 	}
-	
+
 	//err_log("wait timeout %d\r\n", ret);
 
 	return ret;
@@ -126,8 +158,26 @@ static s8 exe_cmd(char *cmd)
 		if (wait_for_return() == 0)
 			return 0;
 	}
-	
+
 	return -1;
+}
+
+static s8 get_id(u32 ip, u16 local_port, u16 remote_port)
+{
+	u8 i;
+
+	for (i = 0; i < sizeof(ip_map) / sizeof(ip_map[0]); i++)
+		if (ip_map[i].ip == ip &&
+				local_port == ip_map[i].local_port &&
+				remote_port == ip_map[i].remote_port)
+			return i;
+
+	return -1;
+}
+
+static struct ip_port_map *get_ip_port(u8 id)
+{
+	return &ip_map[id];
 }
 
 s8 get_ip(void)
@@ -217,16 +267,16 @@ s8 set_mux(s8 mode)
 s8 udp_setup(u32 ip, u16 remote_port, u16 local_port)
 {
 	char ip_str[16];
-	
+
 	sprintf(ip_str, "%d.%d.%d.%d", ip >> 24, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip &0xff);
-	
+
 	if (gID >= sizeof(ip_map)/sizeof(ip_map[0]))
 		return -1;
-	
+
 	ip_map[gID].ip = ip;
 	ip_map[gID].remote_port = remote_port;
 	ip_map[gID].local_port = local_port;
-	
+
 	sprintf(temp, "AT+CIPSTART=%d,\"UDP\",\"%s\",%d,%d\r\n", gID++, ip_str, remote_port, local_port);
 	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return exe_cmd(temp);
@@ -239,47 +289,29 @@ void ping(u32 ip)
 	char priv_char;
 
 	sprintf(ip_str, "%d.%d.%d.%d", ip >> 24, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip &0xff);
-	
+
 	sprintf(temp, "AT+PING=\"%s\"\r\n", ip_str);
-	
+
 	bus_send_string(temp);
-	
+
 	while (timeout) {	
 		char c = wifi_uart_recieve1();
 		if (priv_char == 'O' && c == 'K')
 			break;
-		
+
 		if (priv_char == 'O' && c == 'R')
 			break;
-		
+
 		if (c == '\0') {
 			msleep(10);
 			timeout--;
 		} else
 			priv_char = c;						
 	}
-	
+
 	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
-	
+
 	msleep(100);
-}
-
-static s8 get_id(u32 ip, u16 local_port, u16 remote_port)
-{
-	u8 i;
-	
-	for (i = 0; i < sizeof(ip_map) / sizeof(ip_map[0]); i++)
-		if (ip_map[i].ip == ip &&
-			local_port == ip_map[i].local_port &&
-			remote_port == ip_map[i].remote_port)
-			return i;
-		
-	return -1;
-}
-
-static struct ip_port_map *get_ip_port(u8 id)
-{
-	return &ip_map[id];
 }
 
 s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
@@ -289,43 +321,43 @@ s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
 	char priv_char;
 
 	sprintf(temp, "AT+CIPSEND=%d,%d\r\n", id, len);
-		
+
 	mutex_lock(&lock);
-	
+
 	bus_send_string(temp);
-	
+
 	timeout = 500;
-	
+
 	while (timeout) {	
 		char c = wifi_uart_recieve1();
-		
+
 		if (c == '>') {
 			ret = 0;
 			break;
 		}
-		
+
 		if (c == '\0') {
 			msleep(10);	
 			timeout--;
 		}
 	}
-	
+
 	if (timeout == 0 && ret == -1)
 		goto out;
-	
+
 	bus_send(data, len);
-	
+
 	timeout = 500;
 	ret = -1;
-	
+
 	while (timeout) {
 		char c = wifi_uart_recieve1();
-		
+
 		if (priv_char == 'O' && c == 'K') {
 			ret = 0;
 			goto out;
 		}
-		
+
 		if (c == '\0') {
 			msleep(10);	
 			timeout--;
@@ -334,9 +366,9 @@ s8 send_data(u32 ip, u16 src_port, u16 dst_port, char *data, u16 len)
 	}
 out:	
 	mutex_unlock(&lock);
-	
+
 	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
-	
+
 	return ret;
 }
 
@@ -344,19 +376,19 @@ static u16 get_len(char *buf)
 {
 	u8 i;
 	u16 tmp = 0;
-		
+
 	for (i = 0; (buf[i] = bus_recieve()) != ':'; i++) {
 		tmp *= 10;
 		tmp += buf[i] - '0';
 	}
-	
+
 	return tmp;
 }
 
 static char net_receive_sync(void)
 {
 	char c;
-	
+
 	while (1) {
 		c = bus_recieve();
 		if (c == '\0')
@@ -376,38 +408,38 @@ void recv_data(u32 *ip, u16 *port, char *buf, u16 *buf_len)
 
 	while (1) {		
 		c = net_receive_sync();
-		
+
 		if (c != '+')
 			continue;		
-		
+
 		/* read IPD */
 		for (i = 0; i < 4; i++)
 			tmp[i] = net_receive_sync();
-		
+
 		if (strncmp(tmp, "IPD,", 4) != 0)
 			continue;
-		
+
 		/* read fd */
 		for (i = 0; i < 2; i++)
 			tmp[i] = net_receive_sync();
-		
+
 		//fd is from '0' to '9'
 		fd  = tmp[0] - '0';
-		
+
 		/* get length */
 		len = get_len(tmp);
-		
+
 		for (i = 0; i < len; i++)
 			buf[i] = net_receive_sync();
-		
+
 		break;
 	}
-	
+
 	map = get_ip_port(fd);
 	*ip = map->ip;
 	*port = map->remote_port;
 	*buf_len = len;
-	
+
 	err_log("fd %d ip %x port %d\r\n", fd, *ip, *port);
 }
 
@@ -418,7 +450,7 @@ s8 udp_close(u8 id)
 	ret = exe_cmd(temp);
 	if (ret == 0 && gID > 0) 
 		gID--;
-	
+
 	err_log("%s %d %s\r\n", __func__, __LINE__, temp);
 	return ret;
 }
@@ -443,59 +475,27 @@ s8 esp_reset(void)
 	return exe_cmd(temp);	
 }
 
-void update_esp8266(void)
-{
-	GPIO_WriteBit(ESP8266_DOWNLOAD, ESP8266_DOWNLOAD_PIN, Bit_RESET);
-}
-
-void work_esp8266(void)
-{
-	GPIO_WriteBit(ESP8266_DOWNLOAD, ESP8266_DOWNLOAD_PIN, Bit_SET); //update pin IO0
-}
-
-void enbale_esp8266(void)
-{
-	GPIO_WriteBit(ESP8266_ENABLE, ESP8266_ENABLE_PIN, Bit_SET);
-}
-
-void disable_esp8266(void)
-{
-	GPIO_WriteBit(ESP8266_ENABLE, ESP8266_ENABLE_PIN, Bit_SET);
-}
-
-void reset_esp8266(void)
-{
-	GPIO_WriteBit(ESP8266_GPIO15, ESP8266_GPIO15_PIN, Bit_RESET);
-	msleep(100);
-	GPIO_WriteBit(ESP8266_RST, ESP8266_RST_PIN, Bit_SET);
-	msleep(100);
-	GPIO_WriteBit(ESP8266_RST, ESP8266_RST_PIN, Bit_RESET);
-	msleep(300);
-	GPIO_WriteBit(ESP8266_RST, ESP8266_RST_PIN, Bit_SET);
-	msleep(100);
-}
-
 void esp8266_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
-		
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB |RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC, ENABLE);	
 	// download
 	GPIO_InitStructure.GPIO_Pin = ESP8266_DOWNLOAD_PIN;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_Init(ESP8266_DOWNLOAD, &GPIO_InitStructure);
-	
+
 
 #if defined(LCD)	
 	//rst
 	GPIO_InitStructure.GPIO_Pin = ESP8266_PWR_EN_PIN;
 	GPIO_Init(ESP8266_PWR_EN, &GPIO_InitStructure);
-	
+
 	GPIO_WriteBit(ESP8266_PWR_EN, ESP8266_PWR_EN_PIN, Bit_SET);
 	msleep(200);
 #endif
-	
+
 	GPIO_InitStructure.GPIO_Pin = ESP8266_RST_PIN;
 	GPIO_Init(ESP8266_RST, &GPIO_InitStructure);
 
@@ -506,7 +506,7 @@ void esp8266_init(void)
 	//CS
 	GPIO_InitStructure.GPIO_Pin = ESP8266_GPIO15_PIN;
 	GPIO_Init(ESP8266_GPIO15, &GPIO_InitStructure);
-	
+
 	GPIO_InitStructure.GPIO_Pin = ESP8266_GPIO4_PIN;
 	GPIO_Init(ESP8266_GPIO4, &GPIO_InitStructure);
 
@@ -515,7 +515,7 @@ void esp8266_init(void)
 	disable_esp8266();
 	msleep(100);
 	enbale_esp8266();
-	
+
 	mutex_init(&lock);
 }
 

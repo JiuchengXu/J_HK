@@ -28,15 +28,15 @@
 void e2prom_onboard_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
-	
+
 	RCC_APB2PeriphClockCmd(EEPROM_WP_RCC, ENABLE); 
-	
+
 	GPIO_InitStructure.GPIO_Pin    = EEPROM1_WP_Pin;
 	GPIO_InitStructure.GPIO_Speed  = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode   = GPIO_Mode_Out_PP;
-	
+
 	GPIO_Init(EEPROM1_WP, &GPIO_InitStructure);
-	
+
 	GPIO_ResetBits(EEPROM1_WP, EEPROM1_WP_Pin);	
 }
 
@@ -55,16 +55,16 @@ static u8 eeprom[] = "SN145784541458890000015332453214253064064", test_eeprom[10
 void e2prom_test(void)
 {
 	e2prom_onboard_Reads(0, test_eeprom, sizeof(eeprom));
-	
+
 	memset(test_eeprom, 0, 100);
-	
+
 	e2prom_onboard_Writes(0, eeprom, sizeof(eeprom));
-	
+
 	e2prom_onboard_Reads(0, test_eeprom, sizeof(eeprom));
-	
+
 	printf("%s\n", test_eeprom);
-	
+
 	while (1);
-	
+
 	//printf("%s\n", test_eeprom);
 }

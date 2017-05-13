@@ -28,7 +28,7 @@ void blue_led_on(void)
 void red_intival(void)
 {
 	static s8 val = 1;
-	
+
 	if (val == 1) {
 		red_led_on();
 		val = 0;
@@ -41,7 +41,7 @@ void red_intival(void)
 void blue_intival(void)
 {
 	static s8 val = 1;
-	
+
 	if (val == 1) {
 		blue_led_on();
 		val = 0;
@@ -53,15 +53,15 @@ void blue_intival(void)
 void LED_Init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
-	
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC, ENABLE);	
-	
+
 	//red led
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	
+
 	//green led
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;

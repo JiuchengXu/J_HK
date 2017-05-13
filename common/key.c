@@ -86,63 +86,63 @@ static void read_key_from_eeprom(void)
 {
 	//memcpy(&gen_key, eeprom, sizeof(eeprom));
 	//char *a = eeprom;
-	
+
 	//gen_key = *(struct eeprom_key_info *)a;
-	
-	
-	
+
+
+
 	//key_Writes(0, (u8 *)&gen_key, sizeof(gen_key));
-	
+
 	//return;
 
 #ifdef CLOTHE
 	union key tmp_key;
-	
+
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
 #if 0	
-		memset(tmp_key.gen_key.ssid, 0, sizeof(gen_key.ssid));
-		memset(tmp_key.gen_key.passwd, 0, sizeof(gen_key.passwd));
-		
-		memcpy(tmp_key.gen_key.sn, "SN14578454145890", 16);
-		memcpy(tmp_key.gen_key.user_id, "0000015332457447", 16);
-		memcpy(tmp_key.gen_key.host_ip, "192168000104", 12);
-		//memcpy(tmp_key.gen_key.ssid, "1103", 4);
-		memcpy(tmp_key.gen_key.ssid, WIFI_SSID, strlen(WIFI_SSID));
-		//memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
-		memcpy(tmp_key.gen_key.passwd, WIFI_PASSWD, strlen(WIFI_PASSWD));
+	memset(tmp_key.gen_key.ssid, 0, sizeof(gen_key.ssid));
+	memset(tmp_key.gen_key.passwd, 0, sizeof(gen_key.passwd));
+
+	memcpy(tmp_key.gen_key.sn, "SN14578454145890", 16);
+	memcpy(tmp_key.gen_key.user_id, "0000015332457447", 16);
+	memcpy(tmp_key.gen_key.host_ip, "192168000104", 12);
+	//memcpy(tmp_key.gen_key.ssid, "1103", 4);
+	memcpy(tmp_key.gen_key.ssid, WIFI_SSID, strlen(WIFI_SSID));
+	//memcpy(tmp_key.gen_key.passwd, "Q!W@E#r4", 8);
+	memcpy(tmp_key.gen_key.passwd, WIFI_PASSWD, strlen(WIFI_PASSWD));
 #endif	
 	if (memcmp(tmp_key.spec_key.key, "AKey", 4) == 0) {
 		upload_spec_key((u8 *)tmp_key.spec_key.key);
-		
+
 	} else {
 		if (key_first_use) {
 			key_first_use = 0;
 			gen_key = tmp_key.gen_key;
 		} else if (memcmp(gen_key.sn, tmp_key.gen_key.sn, sizeof(gen_key.sn)) == 0)
 			gen_key = tmp_key.gen_key;
-		
+
 		int2chars_16(tmp_key.gen_key.blod_def, 0, sizeof(tmp_key.gen_key.blod_def));
-		
+
 		//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
 	}
 #endif
-	
+
 #ifdef GUN
 	union key tmp_key;
-	
+
 	key_Reads(0, (u8 *)&tmp_key, sizeof(tmp_key));
-	
+
 	//memcpy(tmp_key.gen_key.bulet, "999", 3);
-	
+
 	//memcpy(tmp_key.gen_key.bulet, "100", 3);
 	//gen_key = tmp_key.gen_key;
-	
+
 	//int2chars_16(tmp_key.gen_key.bulet, 0, sizeof(tmp_key.gen_key.bulet));
 	//key_Writes(0, (u8 *)&tmp_key, sizeof(tmp_key));
-	
+
 	gen_key = tmp_key.gen_key;
 #endif
-	
+
 #ifdef LCD
 	lcd_trunoff_backlight_countdown();
 
@@ -159,25 +159,25 @@ static void key_state_machine_task(void)
 {
 	s8 status = KEY_UNUSED;
 	s8 key_insert_flag;
-	
+
 	while (1) {
 		key_insert_flag = key_get_gpio();
-		
+
 		switch (status) {
 			case KEY_UNINSERT:
 				if (key_insert_flag)
 					status = KEY_INSERTING;
 				break;
-				
+
 			case KEY_INSERTING:
 				if (key_insert_flag) {
 					status = KEY_INSERTED;
 				}
 				break;
-				
+
 			case KEY_INSERTED:
 				read_key_from_eeprom();
-			
+
 				key_fresh_status = 1;
 
 				status = KEY_UNUSED;
@@ -194,7 +194,7 @@ static void key_state_machine_task(void)
 void key_test(void)
 {
 	char a[]="SN145784541458890000015332453214253064064";
-	
+
 	key_Writes(0, (u8 *)a, sizeof(a));
 	memset(a, 0, sizeof(a));
 	key_Reads(0, (u8 *)a, sizeof(a));
@@ -215,21 +215,21 @@ s16 key_get_blod(void)
 {
 	s16 ret = (s16)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
 	int2chars_16(gen_key.blod_def, 0, sizeof(gen_key.blod_def));
-	
+
 	return ret;
 }
 
 s16 key_get_bulet(void)
 {
 	s16 ret = (s16)char2u32_16(gen_key.bulet, sizeof(gen_key.bulet));
-	
+
 	return ret;
 }
 
 static s16 _key_get_blod(void)
 {
 	s16 ret = (s16)char2u32_16(gen_key.blod_def, sizeof(gen_key.blod_def));
-	
+
 	return ret;
 }
 
@@ -241,9 +241,9 @@ void key_get_ip_suffix(char *s)
 s8 key_get_fresh_status(void)
 {
 	s8 ret = key_fresh_status;
-	
+
 	key_fresh_status = 0;
-	
+
 	return ret;
 }
 
@@ -252,32 +252,32 @@ u32 key_get_host_ip(void)
 	u8 ip[4];
 	int i;
 	u32 *ret;
-	
+
 	for (i = 0; i < 4; i++)
 		ip[3 - i]= (u8)char2u32_10(gen_key.host_ip[i], 3);
-	
+
 	ret = (u32 *)ip;
-	
+
 	return *ret;
 }
 
 void key_init(void)
 {
 	OS_ERR err;
-		
+
 	GPIO_InitTypeDef GPIO_InitStructure;
-	
- 	RCC_APB2PeriphClockCmd(KEY_INT_RCC, ENABLE);
+
+	RCC_APB2PeriphClockCmd(KEY_INT_RCC, ENABLE);
 
 	GPIO_InitStructure.GPIO_Pin  = KEY_INT_GPIO_PIN;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; 
- 	GPIO_Init(KEY_INT_GPIO, &GPIO_InitStructure);
-	
+	GPIO_Init(KEY_INT_GPIO, &GPIO_InitStructure);
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 	GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_11;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; 
- 	GPIO_Init(GPIOC, &GPIO_InitStructure);
-	
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
 	GPIO_WriteBit(GPIOC, GPIO_Pin_11, Bit_SET);
 
 	while (1) {
@@ -288,7 +288,7 @@ void key_init(void)
 			msleep(200);
 			if (!key_get_gpio())
 				continue;
-			
+
 			read_key_from_eeprom();
 
 #if 		defined(CLOTHE)
@@ -302,12 +302,12 @@ void key_init(void)
 #endif
 			break;
 		}		
-		
+
 		msleep(200);
 	}
-	
+
 	key_fresh_status = 0;
-		
+
 	OSTaskCreate((OS_TCB *)&TaskStkTCB, 
 			(CPU_CHAR *)"key_state_machine_task", 
 			(OS_TASK_PTR)key_state_machine_task, 

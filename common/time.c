@@ -30,16 +30,16 @@ u8 RTC_Init(u32 time)
 {
 	u8 temp=0;
 	s8 i;
-		
+
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);	//使能PWR和BKP外设时钟   
 	PWR_BackupAccessCmd(ENABLE);	//使能后备寄存器访问
-	
+
 	if (1)
-	//if (BKP_ReadBackupRegister(BKP_DR1) != 0x5050)		//从指定的后备寄存器中读出数据:读出了与写入的指定数据不相乎
+		//if (BKP_ReadBackupRegister(BKP_DR1) != 0x5050)		//从指定的后备寄存器中读出数据:读出了与写入的指定数据不相乎
 	{	 			
 		BKP_DeInit();	//复位备份区域 	
 		RCC_LSEConfig(RCC_LSE_ON);	//设置外部低速晶振(LSE),使用外设低速晶振
-			
+
 		while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET&&temp<250)	//检查指定的RCC标志位设置与否,等待低速晶振就绪
 		{
 			temp++;
@@ -63,33 +63,33 @@ u8 RTC_Init(u32 time)
 		RTC_WaitForSynchro();	//等待最近一次对RTC寄存器的写操作完成
 		RTC_ITConfig(RTC_IT_SEC, ENABLE);	//使能RTC秒中断
 		RTC_WaitForLastTask();	//等待最近一次对RTC寄存器的写操作完成
-	
+
 	}
 	//RTC_NVIC_Config();//RCT中断分组设置
-	
+
 	//RTC_Get();//更新时间	
 	return 0; //ok
 }
 
 /*
-void RTC_IRQHandler(void)
-{
-	extern void upiterm_show(int ms);
-	
-	if (RTC_GetITStatus(RTC_IT_SEC) != RESET) {//秒钟中断							   
-		//upiterm_show(0);
-		wake_up(&timer_wait);
-	}
-				  								 
-	RTC_ClearITPendingBit(RTC_IT_SEC|RTC_IT_OW);		//清闹钟中断
-	RTC_WaitForLastTask();	  	    						 	   	 
+   void RTC_IRQHandler(void)
+   {
+   extern void upiterm_show(int ms);
+
+   if (RTC_GetITStatus(RTC_IT_SEC) != RESET) {//秒钟中断							   
+//upiterm_show(0);
+wake_up(&timer_wait);
 }
-*/
+
+RTC_ClearITPendingBit(RTC_IT_SEC|RTC_IT_OW);		//清闹钟中断
+RTC_WaitForLastTask();	  	    						 	   	 
+}
+ */
 
 void set_time(u32 time)
 {
 	init_flag = 1;
-	
+
 	RTC_Init(time);
 }
 
@@ -97,15 +97,15 @@ u32 get_time(s8 *h, s8 *m, s8 *sec)
 {
 	if (init_flag == 0)
 		return 0;
-	
+
 	time_t time = RTC_GetCounter();	
 	struct tm *t = localtime(&time);
-	
+
 	if (h != NULL && m != NULL && sec != NULL) {
 		*h = t->tm_hour + 8 > 24 ? t->tm_hour + 8 - 24 :  t->tm_hour + 8;
 		*m = t->tm_min;
 		*sec = t->tm_sec;
 	}
-	
+
 	return time;
 }
