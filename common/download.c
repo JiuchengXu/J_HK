@@ -177,3 +177,4 @@ void download_task_init(void)
 			(OS_OPT)(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
 			(OS_ERR*)&err);	
 }
+

@@ -74,3 +74,11 @@ void beep_init(void)
 {
 	TIM_PWM_Init(0xa000,1000);
 }
+
+void ok_notice(void)
+{
+	beep_on();
+	sleep(1);
+	beep_off();
+}
+

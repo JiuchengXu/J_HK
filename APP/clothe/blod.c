@@ -1,66 +1,80 @@
 #include "includes.h"
 #include "priority.h"
 #include "net.h"
-#if 0
+
 #ifdef CLOTHE
 
-static volatile u16 blod;
-static OS_SEM blod_sem;
+static int blod;
 
-void wake_up_blod_task(void)
-{
-	OS_ERR err;
-	OSSemPost(&blod_sem, OS_OPT_POST_ALL, &err);
-}
-
-void wait_for_blod_change(void)
-{
-	OS_ERR err;
-	
-	OSSemPend(&blod_sem, NULL, OS_OPT_PEND_BLOCKING, NULL, &err);
-}
-
-void set_lifeLeft(s8 v)
-{
-	blod = v;
-	if (blod > 100)
-		blod = 100;	
-}
-
-s8 get_lifeLeft(void)
+int get_blod(void)
 {
 	return blod;
 }
 
-void add_lifeLeft(s8 v)
+void set_blod(int b)
 {
-	v += get_lifeLeft();
-	set_lifeLeft(v);
+	if (b > 1000)
+		b = 1000;
+	
+	if (b < 0)
+		b = 0;
+	
+	blod = b;
 }
 
-int xjc_ct = 0;
-
-void reduce_blod(s8 i)
+void inc_blod(int v)
 {
-	if (blod <= 0)
+	v += get_blod();
+	set_blod(v);
+}
+
+void dec_blod(int i)
+{
+	if (get_blod() <= 0)
 		return;
+
+	set_blod(get_blod() - i);
+}
+
+int is_live(void)
+{
+	return blod > 0;
+}
+
+int is_dead(void)
+{
+	return blod <= 0;
+}
+
+void blod_read_from_key(void)
+{
+	blod += key_get_blod();
+
+	if (blod > 0x7fff)
+		blod = 0x7fff;
 	
-	if (i == 0)
-		--blod;
-	else {
-		blod -= i;
-		blod = blod < (s8)0 ? (s8)0 : (s8)blod;
-	}
-	xjc_ct++;
-	wake_up_blod_task();
+	upload_status_data(blod);
+}
+
+int is_shot(void)
+{	
+	int ret = irda_get_shoot_info();
+	
+	if (ret > 0) {
+		if (is_shoot_head(ret))
+			dec_blod(50);
+		else
+			dec_blod(10);
+		
+		upload_status_data(blod);
+	}	
+	
+	return ret;
 }
 
 void blod_init(void)
 {
-	OS_ERR err;
-
-	OSSemCreate(&blod_sem, "blod Sem", 0, &err);
+	blod = key_get_blod();
 }
+#endif
 
-#endif
-#endif

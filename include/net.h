@@ -156,4 +156,7 @@ void main_loop(void);
 s8 get_actived_state(void);
 
 
+void net_init(void);
+
+
 #endif

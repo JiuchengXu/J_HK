@@ -31,7 +31,7 @@ void IWDG_Feed(void)
 }
 
 
-void watch_dog_feed_task(void)
+static void watch_dog_feed_task(void)
 {	
 	while (1) {
 		IWDG_Feed();
@@ -83,3 +83,4 @@ void watch_dog_feed_task_delete(void)
 		watch_dog_set(3);
 	}
 }
+

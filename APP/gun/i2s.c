@@ -11,7 +11,7 @@ static u32 file_idx;
 static u16 *CurrentPos;
 static OS_SEM dma_sem;
 
-#define BUF_LEN		256
+#define BUF_LEN		1024
 u16 buffer1[BUF_LEN];
 u16 buffer2[BUF_LEN];
 
@@ -210,24 +210,32 @@ u8 WaveParsing(u16 *buffer)
   	u32 extraformatbytes = 0;
 
   	temp = ReadUnit((u8*)buffer, 0, 4, BigEndian);//?'RIFF'
+	err_log("line %d temp %d\r\n", __LINE__, temp);
   	if (temp != CHUNK_ID)
 		return 1;
+	
+	
 	
   	WAVE_Format.RIFFchunksize = ReadUnit((u8*)buffer, 4, 4, LittleEndian);//?????
 	
   	temp = ReadUnit((u8*)buffer, 8, 4, BigEndian);//?'WAVE'
+	err_log("line %d temp %d\r\n", __LINE__, temp);
   	if (temp != FILE_FORMAT)
 		return 2;
 	
   	temp = ReadUnit((u8*)buffer, 12, 4, BigEndian);//?'fmt '
+	err_log("line %d temp %d\r\n", __LINE__, temp);
   	if (temp != FORMAT_ID)
 		return 3;
 	
   	temp = ReadUnit((u8*)buffer, 16, 4, LittleEndian);//?'fmt'????	
+	err_log("line %d temp %d\r\n", __LINE__, temp);
   	if (temp != 0x10)
 		extraformatbytes = 1;
 	
   	WAVE_Format.FormatTag = ReadUnit((u8*)buffer, 20, 2, LittleEndian);//?????
+	
+	err_log("line %d temp %d\r\n", __LINE__, WAVE_Format.FormatTag);
 	
   	if (WAVE_Format.FormatTag != WAVE_FORMAT_PCM)
 		return 4;  
@@ -238,6 +246,8 @@ u8 WaveParsing(u16 *buffer)
 	WAVE_Format.BlockAlign = ReadUnit((u8*)buffer, 32, 2, LittleEndian);//????
 	WAVE_Format.BitsPerSample = ReadUnit((u8*)buffer, 34, 2, LittleEndian);//??????
 	
+	err_log("line %d temp %d\r\n", __LINE__, WAVE_Format.BitsPerSample);
+	
 	if (WAVE_Format.BitsPerSample != BITS_PER_SAMPLE_16)
 		return 5;
 	
@@ -245,6 +255,7 @@ u8 WaveParsing(u16 *buffer)
 	
 	if (extraformatbytes == 1) {
 		temp = ReadUnit((u8*)buffer, 36, 2, LittleEndian);//???????
+		err_log("line %d temp %d\r\n", __LINE__, temp);
 		if (temp != 0x00)
 			return 6;
 		
@@ -255,7 +266,7 @@ u8 WaveParsing(u16 *buffer)
 	}
 	
 	temp = ReadUnit((u8*)buffer, DataOffset, 4, BigEndian);//?'data'
-	
+	err_log("line %d temp %d\r\n", __LINE__, temp);
 	DataOffset += 4;
 	
 	if (temp != DATA_ID)
