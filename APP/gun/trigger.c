@@ -28,12 +28,13 @@
 #define GUN_TRIGER_GPIO		GPIOC
 #define GUN_TRIGER_GPIO_PIN	GPIO_Pin_13
 
+#define BULET_ONE_BOLT	30
 
 extern void send_charcode(u16 code);
 extern void wav_play_up(void);
 extern void wav_play_down(void);
 
-static s8 bolt = 0;
+static int mode;
 
 void TIM3_Int_Init(u16 arr, u16 psc)
 {
@@ -84,96 +85,145 @@ void startup_motor(void)
 	
 }
 
-s8 is_bolt_on(void)
-{
-	return bolt;
-}
-
 s8 check_pull_bolt(void)
 {	
 	s8 ret =  GPIO_ReadInputDataBit(GUN_BOLT_GPIO, GUN_BOLT_GPIO_PIN) == Bit_RESET;
 	
-	msleep(100);
+	msleep(50);
 	
 	return ret && (GPIO_ReadInputDataBit(GUN_BOLT_GPIO, GUN_BOLT_GPIO_PIN) == Bit_RESET);
 }
 
-s8 is_auto_mode(int mode)
+s8 is_auto_mode(void)
 {
 	return mode == GUN_MODE_AUTO;
 }
 
-s8 is_single_mode(int mode)
+s8 is_single_mode(void)
 {
 	return mode == GUN_MODE_SINGLE;
 }
 
 s8 get_mode(void)
 {	
-	s8 mode = 0;
-	
 	//return GUN_MODE_SINGLE;
 	
 	if (GPIO_ReadInputDataBit(GUN_MODE1_GPIO, GUN_MODE1_GPIO_PIN) == Bit_RESET) {
 		//msleep(20);
 		//if (GPIO_ReadInputDataBit(GUN_MODE1_GPIO, GUN_MODE1_GPIO_PIN) == Bit_RESET)
-			mode = GUN_MODE_AUTO;
+		mode = GUN_MODE_AUTO;
+		err_log("in auto\r\n");
+		
 	} else if (GPIO_ReadInputDataBit(GUN_MODE2_GPIO, GUN_MODE2_GPIO_PIN) == Bit_RESET) {
 		//msleep(20);
 		//if (GPIO_ReadInputDataBit(GUN_MODE2_GPIO, GUN_MODE2_GPIO_PIN) == Bit_RESET)
-			mode = GUN_MODE_SINGLE;
-	}
+		mode = GUN_MODE_SINGLE;
+		err_log("in single\r\n");
+	} else
+		mode = GUN_MODE_OFF;
 		
 	return mode;
+}
+
+int saver_on(void)
+{
+	return get_mode() == GUN_MODE_OFF;
 }
 
 s8 trigger_get_status(void)
 {
 	static int status = 0;	
 	s8 ret = (GPIO_ReadInputDataBit(GUN_TRIGER_GPIO, GUN_TRIGER_GPIO_PIN) == Bit_RESET);
-	int mode;
 	
 	//msleep(20);
 	
 	ret = ret && (GPIO_ReadInputDataBit(GUN_TRIGER_GPIO, GUN_TRIGER_GPIO_PIN) == Bit_RESET);
 
 	return ret;
-/*	
-	mode = get_mode();
-	
-	if (mode == GUN_MODE_SINGLE) {
-		if (ret != 0 && status == 0) {
-			status = 1;
-			return 1;
-		} else if (ret == 0 && status == 1)
-			status = 0;
-	} else if (mode == GUN_MODE_AUTO) {
-		return ret == 1 ? 2 : 0;
-	}
-	
-	return 0;
-	*/
 }
 
-s8 trigger_handle(u16 charcode, int bulet_left)
+int tirgger_pressed(void)
 {
-	s8 mode;
-	s8 bulet_used_nr = 0;
-	
-	if (is_bolt_on() && trigger_get_status()) {
-
-		send_charcode(charcode);
-		
-		wav_play(0);
-
-		startup_motor();
-		
-		bulet_used_nr++;
-	}
-	
-	return bulet_used_nr;
+	return trigger_get_status();
 }
 
+int bolt_pulled(void)
+{
+	return check_pull_bolt() > 0;
+}
+/*
+void handle_bolt_pull(void)
+{
+	s16 bulet = bulet_get();
+	s16 bulet_one_bolt = bulet_one_bolt_get();
+
+	if (check_pull_bolt() > 0) {
+		play_bolt();
+
+		err_log("press bolt\r\n");
+
+		msleep(100);
+
+		if (bulet_one_bolt > 0 && (BULET_ONE_BOLT - bulet_one_bolt) > bulet)
+			bulet_one_bolt += bulet;
+		else
+			bulet_one_bolt = BULET_ONE_BOLT;
+
+		bulet_one_bolt_set(bulet_one_bolt);
+	}
+}
+
+
+void handle_trigger(void)
+{
+	s8 status;
+	s16 characCode;
+	s8 bulet_one_bolt;
+	int i;
+	s8 local_bulet;
+	
+	if (is_single_mode()) {
+		s8 a = trigger_get_status();
+		switch (a) {
+			case 1 :
+				if (status == 0) {
+					play_bulet();
+
+					send_charcode(characCode);
+
+					err_log("press trigger\r\n");
+
+					status = 1;
+
+					msleep(500);
+				}
+				break;
+			case 0 :
+				if (status == 1) {
+					status =  0;
+				}
+				break;				
+		}
+	} else if (is_auto_mode()) {
+		if (trigger_get_status()) {
+			wav_play(2);
+
+			for (i = 0; i < 4 && bulet_one_bolt > 0; i++) {
+				send_charcode(characCode);
+				msleep(200);
+				bulet_one_bolt--;
+				local_bulet--;
+			}
+
+			err_log("press trigger\r\n");
+
+			upload_status_data();
+
+		}
+	}
+
+}
+*/
 void trigger_init(void)
 {
  	GPIO_InitTypeDef GPIO_InitStructure;

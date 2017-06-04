@@ -13,12 +13,11 @@
 
   <project>
     <PathAndName>.\APP\gun\gun.uvprojx</PathAndName>
+    <NodeIsActive>1</NodeIsActive>
   </project>
 
   <project>
     <PathAndName>.\APP\lcd\lcd.uvprojx</PathAndName>
-    <NodeIsActive>1</NodeIsActive>
-    <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
 </ProjectWorkspace>

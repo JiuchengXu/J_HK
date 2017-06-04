@@ -377,7 +377,7 @@ void enable_offline(int mode)
 	offline_enable = mode;
 }
 
-void display_success(void)
+void display_victory(void)
 {
 	extern GUI_CONST_STORAGE GUI_FONT GUI_Fontsuccess78;
 	

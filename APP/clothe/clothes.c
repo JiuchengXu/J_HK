@@ -53,8 +53,6 @@ recheck:
 
 						blod_read_from_key();
 
-						//upload_status_data();
-
 						ok_notice();
 
 						clothe_led("all", 0);
@@ -73,7 +71,6 @@ recheck:
 				}
 			} else {
 				clothe_led_on_then_off(ret, 0xf0, 1);				
-				//upload_status_data();
 			}
 
 			goto recheck;
@@ -82,9 +79,7 @@ recheck:
 		if (key_get_fresh_status()) {
 			blod_read_from_key();
 
-			ok_notice();
-
-			//upload_status_data();			
+			ok_notice();	
 		}
 
 		msleep(250);

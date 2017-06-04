@@ -75,6 +75,8 @@ int is_shot(void)
 void blod_init(void)
 {
 	blod = key_get_blod();
+
+	upload_status_data(blod);
 }
 #endif
 

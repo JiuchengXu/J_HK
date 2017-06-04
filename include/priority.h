@@ -4,8 +4,9 @@
 #include "includes.h"
 
 /* task priority */
-#define OS_TASK_KEY_PRIO		  8
-#define OS_TASK_RECV_PRIO         8
+#define OS_TASK_KEY_PRIO		8
+#define OS_TASK_RECV_PRIO         	8
+#define OS_TASK_LED_PRIO		10
 
 #if defined(LCD)
 #define OS_TASK_TIMER_PRIO           9

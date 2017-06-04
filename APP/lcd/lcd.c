@@ -176,6 +176,14 @@ static void recv_host_handler(char *buf, u16 len)
 			case '1':
 				save_msg_id(char2u32_16(msg->msg_type, sizeof(msg->msg_type)));
 				break;
+			
+			case 'V':
+				display_victory();
+				break;
+			
+			case 'W':
+				display_fail();
+				break;
 		}
 	}
 }

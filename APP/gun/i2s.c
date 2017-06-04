@@ -391,4 +391,9 @@ void play_bulet(void)
 {
 	wav_play(0);
 }
+
+void play_bulets(void)
+{
+	wav_play(2);
+}
 #endif

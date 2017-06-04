@@ -460,3 +460,4 @@ void net_init(void)
 	
 	upload_ip_info();
 }
+

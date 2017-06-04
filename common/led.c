@@ -1,4 +1,5 @@
 #include "includes.h"
+#include "priority.h"
 
 void led_off(void)
 {
@@ -50,8 +51,9 @@ void blue_intival(void)
 		val = 1;
 	}
 }
+
 void LED_Init(void)
-{
+{	
 	GPIO_InitTypeDef GPIO_InitStructure;
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC, ENABLE);	
