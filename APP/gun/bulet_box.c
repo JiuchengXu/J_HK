@@ -99,10 +99,10 @@ void bulet_box_test(void)
 
 static s16 local_bulet, bulet_one_bolt;
 
-static s8 bulet_box_online(void)
+s8 bulet_box_online(void)
 {
-	//return GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_3) == Bit_RESET;
-	return 1;
+	return GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_3) == Bit_RESET;
+	//return 1;
 }
 
 static void bulet_set(s16 bulet)
@@ -145,7 +145,7 @@ int bulet_empty(void)
 
 void bulet_dec(void)
 {
-	if (bulet_empty() || saver_on())
+	if (bulet_empty() || saver_on() || !bulet_box_online())
 		return;
 	
 	if (is_auto_mode()) {
@@ -176,6 +176,9 @@ void bulet_inc(void)
 	u16 b = bulet_get();
 	b = b > BULET_ONE_BOLT ? BULET_ONE_BOLT : b;
 	
+	if (!bulet_box_online())
+		return;
+	
 	bulet_one_bolt_set(b);
 	
 	err_log("bolt is pulled\n\r");
@@ -192,12 +195,25 @@ void bulet_read_from_key(void)
 	bulet_set(b);
 }
 
-void bulet_box_init(void)
+void bulet_box_io_init(void)
 {
+	GPIO_InitTypeDef GPIO_InitStructure;
+	
+ 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_3;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; 
+ 	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	
+	err_log("####%d\n", bulet_box_online());
+}
+
+void bulet_box_init(void)
+{	
 	local_bulet = key_get_bulet();
 	bulet_one_bolt = 0;
 	
 	upload_status_data(local_bulet);
-	
+		
 	err_log("bulet %d\r\n", local_bulet);
 }

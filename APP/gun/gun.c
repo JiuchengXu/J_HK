@@ -17,7 +17,7 @@ static OS_TCB TaskStkTCB;
 static void led_ctrl_task(void *data)
 {
 	while (1) {
-		if (status_get_actived() && !bulet_empty() && !saver_on()) {
+		if (status_get_actived() && !bulet_empty() && !saver_on() && bulet_box_online()) {
 			green_led_on();
 		} else
 			blue_led_on();
@@ -63,8 +63,9 @@ void main_loop(void)
 {
 	int i;
 	
-	led_status_task_create();
+	//led_status_task_create();
 
+	bulet_box_init();
 #if 1
 retry:	
 	key_init();

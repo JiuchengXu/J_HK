@@ -392,7 +392,7 @@ void  BSP_Init (void)
 	led_38k_init();
 	I2S_Bus_Init();
 	wav_pre_read();
-	//bulet_box_init();
+	bulet_box_io_init();
 	trigger_init();
 	adc_init();
 }

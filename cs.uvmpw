@@ -9,11 +9,13 @@
 
   <project>
     <PathAndName>.\APP\clothe\clothe.uvprojx</PathAndName>
+    <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
   <project>
     <PathAndName>.\APP\gun\gun.uvprojx</PathAndName>
     <NodeIsActive>1</NodeIsActive>
+    <NodeIsExpanded>1</NodeIsExpanded>
   </project>
 
   <project>
